@@ -1,0 +1,391 @@
+# aws cloudformation delete-stack --stack-name iris-model-pipeline
+# aws cloudformation create-stack --stack-name iris-model-pipeline --template-body file://build-model-pipeline.yml
+
+Description: Create a CodePipeline for a Machine Learning Model
+Parameters:
+  GitHubToken:
+    NoEcho: true
+    Description: Secret. It might look something like 9b189a1654643522561f7b3ebd44a1531a4287af OAuthToken with access to Repo. Go to https://github.com/settings/tokens
+    Type: String
+  GitHubUser:
+    Default: brightsparc
+    Description: GitHub UserName
+    Type: String
+  GitHubRepo:
+    Default: sagemaker-safe-deployment-pipeline
+    Type: String
+    Description: Name of the GitHub repository
+  GitHubBranch:
+    Default: master
+    Type: String
+    Description: Name of the branch the code is located
+  ModelName:
+    Default: nyctaxi
+    Type: String
+    Description: Name of the model
+  NotebookInstanceType:
+    Type: String
+    Default: ml.t3.medium
+    AllowedValues:
+      - ml.t3.medium
+      - ml.t3.large
+      - ml.t3.2xlarge
+      - ml.m5.large
+      - ml.m5.xlarge
+      - ml.m5.2xlarge
+    Description: Enter ml instance size for notebook. Default is ml.t3.medium
+
+Resources:
+
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties: 
+      BucketName: !Sub ${AWS::StackName}-artifact
+      AccessControl: Private
+      VersioningConfiguration:
+        Status: Enabled
+
+  BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub ${AWS::StackName}-build
+      Description: Builds the assets required for executing the rest of pipeline
+      ServiceRole: !GetAtt MLOpsRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:1.0
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: model/buildspec.yml
+      TimeoutInMinutes: 30
+    
+  CreateExperiment:
+    Type: "AWS::Lambda::Function"
+    Properties: 
+      FunctionName: !Sub ${AWS::StackName}-create-experiment
+      Handler: index.lambda_handler
+      MemorySize: 512
+      Role: !GetAtt MLOpsRole.Arn 
+      Runtime: python3.6
+      Timeout: 60
+      Code: 
+        ZipFile: !Sub |
+          import boto3
+          import io
+          import zipfile
+          import json
+
+          s3 = boto3.client('s3')
+          sm = boto3.client('sagemaker')
+          codepipeline = boto3.client('codepipeline')
+
+          def lambda_handler(event, context):
+              print('event', json.dumps(event))
+              jobId = event["CodePipeline.job"]["id"]
+              experiment = None
+              trial = None
+
+              try:
+                  for inputArtifacts in event["CodePipeline.job"]["data"]["inputArtifacts"]:
+                      if inputArtifacts['name'] == 'BuildOutput':
+                          s3Location = inputArtifacts['location']['s3Location']
+                          zip_bytes = s3.get_object(Bucket=s3Location['bucketName'], Key=s3Location['objectKey'])['Body'].read()
+                          with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as z:
+                            experiment = json.loads(z.read('experiment.json').decode('utf-8'))
+                            trial = json.loads(z.read('trial.json').decode('utf-8'))
+
+                  if experiment is None or trial is None:
+                    raise(Exception("Experiment and Trail config not found"))
+
+                  try:
+                      response = sm.create_experiment(**experiment)
+                      print('created exp', response)
+                  except Exception as e:
+                      print('error creating exp', e)
+                  try:
+                      response = sm.create_trial(**trial)
+                      print('created trial', response)
+                  except Exception as e:
+                      print('error creating trial', e)
+
+                  # and update codepipeline
+                  codepipeline.put_job_success_result(jobId=jobId)
+              except Exception as e:
+                  print(e)
+                  resp = codepipeline.put_job_failure_result(
+                      jobId=jobId,
+                      failureDetails={
+                          'type': 'ConfigurationError',
+                          'message': str(e),
+                          'externalExecutionId': context.aws_request_id
+                      }
+                  )
+              return 'Done'
+
+      Description: "Function that creates an experiment and trial"
+      Tags:
+        - Key: Name
+          Value: !Sub mlops-launch-job-${ModelName}
+
+  DeployPipeline:
+    Type: "AWS::CodePipeline::Pipeline"
+    Properties:
+      Name: !Sub ${AWS::StackName}
+      RoleArn: !GetAtt MLOpsRole.Arn
+      ArtifactStore:
+          Type: S3
+          Location:
+            Ref: ArtifactBucket
+      Stages:
+        -
+          Name: Source
+          Actions: 
+            - 
+              Name: GitSource
+              ActionTypeId: 
+                Category: Source
+                Owner: ThirdParty
+                Version: 1
+                Provider: GitHub
+              OutputArtifacts: 
+                - Name: ModelSourceOutput
+              Configuration: 
+                Owner: !Ref GitHubUser
+                Repo: !Ref GitHubRepo
+                Branch: !Ref GitHubBranch
+                OAuthToken: !Ref GitHubToken
+            -
+              Name: DataSource
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: S3
+              OutputArtifacts:
+                - Name: DataSourceOutput
+              Configuration:
+                S3Bucket: !Sub sagemaker-${AWS::Region}-${AWS::AccountId}
+                S3ObjectKey: !Sub ${ModelName}/data/source.zip
+              RunOrder: 1
+        -
+          Name: Build
+          Actions:
+            -
+              Name: BuildModel
+              InputArtifacts:
+                - Name: ModelSourceOutput
+                - Name: DataSourceOutput
+              OutputArtifacts:
+                - Name: BuildOutput
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref BuildProject
+                PrimarySource: ModelSourceOutput
+                EnvironmentVariables: !Sub '[{"name":"DATA_BUCKET","value":"sagemaker-${AWS::Region}-${AWS::AccountId}","type":"PLAINTEXT"},{"name":"MODEL_NAME","value":"${ModelName}","type":"PLAINTEXT"},{"name":"ROLE_ARN","value":"${MLOpsRole.Arn}","type":"PLAINTEXT"},{"name":"ARTIFACT_BUCKET","value":"${ArtifactBucket}","type":"PLAINTEXT"}]'
+              RunOrder: 1
+            -
+              Name: CustomResource
+              InputArtifacts:
+                - Name: BuildOutput
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: REPLACE_ON_FAILURE
+                RoleArn: !GetAtt MLOpsRole.Arn
+                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                StackName: !Sub ${AWS::StackName}-custom-resource
+                TemplatePath: BuildOutput::template-custom-resource.yml
+              RunOrder: 2
+        -
+          Name: Train
+          Actions:
+            -
+              Name: CreateExperiment
+              InputArtifacts:
+                - Name: BuildOutput
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Version: 1
+                Provider: Lambda
+              Configuration:
+                  FunctionName: !Ref CreateExperiment
+                  UserParameters: !Sub mlops-pipeline-${ModelName}
+              RunOrder: 1
+            - 
+              Name: TrainModel
+              InputArtifacts:
+                - Name: BuildOutput
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: REPLACE_ON_FAILURE
+                RoleArn: !GetAtt MLOpsRole.Arn
+                StackName: !Sub ${AWS::StackName}-training-job
+                TemplateConfiguration: BuildOutput::training-job.json
+                TemplatePath: BuildOutput::training-job.yml
+              RunOrder: 2
+            -
+              Name: SuggestBaseline
+              InputArtifacts:
+                - Name: BuildOutput
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: REPLACE_ON_FAILURE
+                RoleArn: !GetAtt MLOpsRole.Arn
+                StackName: !Sub ${AWS::StackName}-suggest-baseline
+                TemplateConfiguration: BuildOutput::suggest-baseline.json
+                TemplatePath: BuildOutput::suggest-baseline.yml
+              RunOrder: 2
+        -
+          Name: DeployDev
+          Actions:
+            - 
+              Name: DeployModelDev
+              InputArtifacts:
+                - Name: BuildOutput
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ActionMode: REPLACE_ON_FAILURE
+                RoleArn: !GetAtt MLOpsRole.Arn
+                Capabilities: CAPABILITY_NAMED_IAM
+                StackName: !Sub ${AWS::StackName}-deploy-dev
+                TemplateConfiguration: BuildOutput::deploy-model-dev.json
+                TemplatePath: BuildOutput::deploy-model-dev.yml
+              RunOrder: 1
+            -
+              Name: ApproveDeploy
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Version: 1
+                Provider: Manual
+              Configuration:
+                CustomData: 'Shall this model be put into production?'
+              RunOrder: 2
+        -
+          Name: DeployPrd
+          Actions:
+            - 
+              Name: DeployModelPrd
+              InputArtifacts:
+                - Name: BuildOutput
+              OutputArtifacts:
+                - Name: ModelDeployPrdOutput
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation                
+              Configuration:
+                ActionMode: CREATE_UPDATE
+                RoleArn: !GetAtt MLOpsRole.Arn
+                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                StackName: !Sub ${AWS::StackName}-deploy-prd
+                TemplateConfiguration: BuildOutput::template-model-prd.json
+                TemplatePath: BuildOutput::template-model-prd.yml
+              RunOrder: 1
+
+  NotebookInstance:
+    Type: "AWS::SageMaker::NotebookInstance"
+    Properties:
+      NotebookInstanceName: !Sub ${AWS::StackName}-notebook
+      InstanceType: !Ref NotebookInstanceType
+      RoleArn: !GetAtt MLOpsRole.Arn
+      LifecycleConfigName: !GetAtt NotebookInstanceLifecycleConfig.NotebookInstanceLifecycleConfigName
+      DefaultCodeRepository: !Sub https://github.com/${GitHubUser}/${GitHubRepo}.git
+    DependsOn: 
+      - NotebookInstanceLifecycleConfig
+      - DeployPipeline
+
+  NotebookInstanceLifecycleConfig:
+    Type: "AWS::SageMaker::NotebookInstanceLifecycleConfig"
+    Properties:
+      NotebookInstanceLifecycleConfigName: !Sub ${AWS::StackName}-lifecycle-config
+      OnStart:
+        - Content: 
+            Fn::Base64:
+              Fn::Sub: |
+                #!/bin/bash
+                #TODO: Pull data and push to S3 data bucket for pipeline
+
+  MLOpsRole:
+    Type: "AWS::IAM::Role"
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "sagemaker.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "cloudformation.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "codepipeline.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "codebuild.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "lambda.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "events.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies: 
+        - 
+          PolicyName: "Admin"
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement: 
+              - 
+                Effect: "Allow"
+                Action: "*"
+                Resource: "*"
