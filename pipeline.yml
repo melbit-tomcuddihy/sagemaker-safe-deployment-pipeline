@@ -167,8 +167,8 @@ Resources:
               OutputArtifacts:
                 - Name: DataSourceOutput
               Configuration:
-                S3Bucket: !Sub sagemaker-${AWS::Region}-${AWS::AccountId}
-                S3ObjectKey: !Sub ${ModelName}/data/source.zip
+                S3Bucket: !Ref ArtifactBucket
+                S3ObjectKey: !Sub ${AWS::StackName}/data-source.zip
               RunOrder: 1
         -
           Name: Build
@@ -328,7 +328,10 @@ Resources:
             Fn::Base64:
               Fn::Sub: |
                 #!/bin/bash
-                #TODO: Pull data and push to S3 data bucket for pipeline
+                touch /etc/profile.d/jupyter-env.sh
+                echo "export ARTIFACT_BUCKET=${ArtifactBucket}" >> /etc/profile.d/jupyter-env.sh
+                echo "export PIPELINE_NAME=${AWS::StackName}" >> /etc/profile.d/jupyter-env.sh
+                echo "export MODEL_NAME=${ModelName}" >> /etc/profile.d/jupyter-env.sh
 
   MLOpsRole:
     Type: "AWS::IAM::Role"
