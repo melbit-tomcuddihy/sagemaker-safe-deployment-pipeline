@@ -203,7 +203,7 @@ Resources:
                 ActionMode: REPLACE_ON_FAILURE
                 RoleArn: !GetAtt MLOpsRole.Arn
                 Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
-                StackName: !Sub ${AWS::StackName}-custom-resource
+                StackName: sagemaker-custom-resource # Use global name to re-use across templates
                 TemplatePath: BuildOutput::template-custom-resource.yml
               RunOrder: 2
         -
