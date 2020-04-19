@@ -269,7 +269,6 @@ Resources:
               Configuration:
                 ActionMode: REPLACE_ON_FAILURE
                 RoleArn: !GetAtt MLOpsRole.Arn
-                Capabilities: CAPABILITY_NAMED_IAM
                 StackName: !Sub ${AWS::StackName}-deploy-dev
                 TemplateConfiguration: BuildOutput::deploy-model-dev.json
                 TemplatePath: BuildOutput::deploy-model-dev.yml
@@ -301,7 +300,7 @@ Resources:
               Configuration:
                 ActionMode: CREATE_UPDATE
                 RoleArn: !GetAtt MLOpsRole.Arn
-                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                Capabilities: CAPABILITY_IAM,CAPABILITY_AUTO_EXPAND
                 StackName: !Sub ${AWS::StackName}-deploy-prd
                 TemplateConfiguration: BuildOutput::template-model-prd.json
                 TemplatePath: BuildOutput::template-model-prd.yml

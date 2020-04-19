@@ -79,13 +79,12 @@ def get_dev_params(model_name, job_id, role, image_uri):
         }
     }
 
-def get_prd_params(model_name, job_id, role, image_uri,
-                   metric_name='feature_baseline_drift_class_predictions', metric_threshold=0.4):
+def get_prd_params(model_name, job_id, role, image_uri):
     dev_params = get_dev_params(model_name, job_id, role, image_uri)['Parameters']
     prod_params = {
         "VariantName": "PrdTraffic",
-        "ScheduleMetricName": metric_name, # alarm on class predictions drift
-        "ScheduleMetricThreshold": str(metric_threshold) # Must serialize parameters as string
+        "ScheduleMetricName": 'feature_baseline_drift_total_amount',
+        "ScheduleMetricThreshold": str('20') 
     }    
     return {
         "Parameters": dict(dev_params, **prod_params)
