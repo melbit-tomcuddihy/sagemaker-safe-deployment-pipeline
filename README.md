@@ -10,6 +10,7 @@ This solution provides as *safe* deployment by creating an AWS Lambda API that c
 
 - **AWS account** – Follow these instructions to create an AWS Account: [Create an AWS Account](http://docs.aws.amazon.com/AmazonSimpleDB/latest/DeveloperGuide/AboutAWSAccounts.html)
 - **GitHub OAuth Token** – Follow these instructions to create an OAuth Token: [Create a GitHub OAuth Token](https://docs.aws.amazon.com/codepipeline/latest/userguide/GitHub-authentication.html)
+- **Forked GitHub Repository** - Fork this repository to your GitHub account: <a href="https://github.com/brightsparc/sagemaker-safe-deployment-pipeline/fork">Fork</a>
 
 ###  Architecture Diagram
 

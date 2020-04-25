@@ -1,5 +1,15 @@
+# Delete the stack: 
+#
 # aws cloudformation delete-stack --stack-name iris-model-pipeline
-# aws cloudformation create-stack --stack-name iris-model-pipeline --template-body file://build-model-pipeline.yml
+#
+# Create the stack:
+#
+# aws cloudformation create-stack --stack-name iris-model-pipeline \
+#   --template-body file://pipeline.yml \
+#   --capabilities CAPABILITY_IAM \
+#   --parameters \
+#       ParameterKey=GitHubUser,ParameterValue=<GitHub Username> \
+#       ParameterKey=GitHubToken,ParameterValue=<GitHub Token>
 
 Description: Create a CodePipeline for a Machine Learning Model
 Parameters:
