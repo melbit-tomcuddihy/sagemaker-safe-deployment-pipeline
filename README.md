@@ -6,7 +6,7 @@ This is a sample solution to build a safe deployment pipeline for Amazon SageMak
 
 This solution provides as *safe* deployment by creating an AWS Lambda API that calls into an Amazon SageMaker Endpoint for real-time inference.
 
-###  Architecture Diagram
+##  Architecture
 
 Following is a digram of the continous delivery stages in the AWS Code Pipeline.  
 
@@ -106,3 +106,37 @@ Following is a lis of approximate running times fo the pipeline
 * Launch Dev Endpoint: 10 minutes
 * Launch Prod Endpoint: 25 minutes
 * Monitoring Schedule: Runs on the hour
+
+## Customising for your own model
+
+This project is written in Python, and design to be customised for your own model and API.
+
+```
+.
+├── api
+│   ├── __init__.py
+│   ├── app.py
+│   ├── post_traffic_hook.py
+│   └── pre_traffic_hook.py
+├── model
+│   ├── buildspec.yml
+│   ├── requirements.txt
+│   └── run.py
+├── notebook
+│   └── mlops.ipynb
+└── pipeline.yml
+```
+
+Edit the `get_training_params` method in the `model/run.py` script that is run as part of the AWS CodeBuild step to add your own estimator or model definition.
+
+Extend the AWS Lambda hooks in `api/pre_traffic_hook.py` and `api/post_traffic_hook.py` to add your own validation or inference against the deployed Amazon SageMaker endpoints.  Also you can edit the `api/app.py` lambda to add any encichment or transformation to the request/response payload.
+
+## Opening Issues
+
+If you encounter a bug with this project we would like to hear about it. Search the [existing issues](https://github.com/brightsparc/sagemaker-safe-deployment-pipeline/issues) and try to make sure your problem doesn’t already exist before opening a new issue. It’s helpful if you include the version of the python you’re using. Please include a stack trace and reduced repro case when appropriate, too.
+
+## License
+
+This SDK is distributed under the
+[Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0),
+see LICENSE.txt and NOTICE.txt for more information.
