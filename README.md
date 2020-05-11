@@ -15,7 +15,7 @@ Following is a digram of the continous delivery stages in the AWS Code Pipeline.
 3. Deploy Dev: Deploys a development Amazon SageMaker Endpoint
 4. Deploy Prod: Deploys an AWS API Gateway Lambda in front of Amazon SageMaker Endpoints using AWS CodeDeploy for blue/green deployment and rollback.
 
-![app-overview](docs/code-pipeline.png)
+![code-pipeline](docs/code-pipeline.png)
 
 ###  Components Details
   - [**AWS SageMaker**](https://aws.amazon.com/sagemaker/) – This solution uses SageMaker to train the model to be used and host the model at an endpoint, where it can be accessed via HTTP/HTTPS requests
@@ -54,9 +54,31 @@ You can launch the same stack using the AWS CLI. Here's an example:
        ParameterKey=ModelName,ParameterValue=mymodelname
 `
 
+Make sure you also update the `GitHubUser` stack parameter to be from your forked account.
+
+![code-pipeline](docs/stack-parameters.png)
+
 ###  Step 5. Start, Test and Approve the Deployment
 
-Once the deployment has completed, launch the newly created SageMaker Notebook to start the build by uploading a dataset to the source S3 bucket in the code pipeline.  This will kick of Model Training and Baseline and deploy a development SageMaker Endpoint.  There is a manual approval step which you can action directly within the SageMaker Notebook to promote this to production, send some traffic to the live endpoint which will ensure the AWS CodeDeploy action completes succesfully.  Finally the SageMaker Notebook provides the ability to retrieve the results from the Monitoring Schedule that is run on the hour.
+Once the deployment has completed, there will be a new AWS CodePipeline created linked to your GitHub source.  You will notice initially that it will be in a *Failed* state as it is waiting on an S3 data source.
+
+![code-pipeline](docs/data-source-before.png)
+
+Launch the newly created SageMaker Notebook in your [AWS console](https://aws.amazon.com/getting-started/hands-on/build-train-deploy-machine-learning-model-sagemaker/), navigate to the `notebook` directory and opening the notebook by clicking on the `mlops.ipynb` link.
+
+![code-pipeline](docs/sagemaker-notebook.png)
+
+Once the notebook is running, you will be guided through a series of steps starting with downloading the  [New York City Taxi](https://registry.opendata.aws/nyc-tlc-trip-records-pds/) dataset, uploading this to an Amazon SageMaker S3 bucket along with the data source meta data to trigger a new build in the AWS CodePipeline.
+
+![code-pipeline](docs/datasource-after.png)
+
+Once your pipeline is kicked off it will run model training and deploy a development SageMaker Endpoint.  
+
+There is a manual approval step which you can action directly within the SageMaker Notebook to promote this to production, send some traffic to the live endpoint which will ensure the AWS CodeDeploy action completes succesfully.  
+
+![code-pipeline](docs/cloud-formation.png)
+
+Finally, the SageMaker Notebook provides the ability to retrieve the results from the Monitoring Schedule that is run on the hour.
 
 ###  Approximate Times:
 
