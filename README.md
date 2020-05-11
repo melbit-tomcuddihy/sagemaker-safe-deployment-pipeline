@@ -54,6 +54,18 @@ You can launch the same stack using the AWS CLI. Here's an example:
        ParameterKey=ModelName,ParameterValue=mymodelname
 `
 
+Folling is a list of the paramters for running the cloud formation.
+
+<!-- ### pipeline.yaml -->
+Parameters | Description
+---------- | -----------
+Email | The email where CodePipeline will send SNS notifications.
+GitHubUser | GitHub Username.
+GitHubToken | A Secret OAuthToken with access to the GitHub repo.
+GitHubRepo | The name (not URL) of the GitHub repository to pull from.
+GitHubBranch | The name (not URL) of the GitHub repository’s branch to use.
+ModelName | The short name to namespace all the mlops resources.
+
 Make sure you also update the `GitHubUser` stack parameter to be from your forked account.
 
 ![code-pipeline](docs/stack-parameters.png)
@@ -74,9 +86,13 @@ Once the notebook is running, you will be guided through a series of steps start
 
 Once your pipeline is kicked off it will run model training and deploy a development SageMaker Endpoint.  
 
-There is a manual approval step which you can action directly within the SageMaker Notebook to promote this to production, send some traffic to the live endpoint which will ensure the AWS CodeDeploy action completes succesfully.  
+There is a manual approval step which you can action directly within the SageMaker Notebook to promote this to production, send some traffic to the live endpoint and create a REST API.
 
 ![code-pipeline](docs/cloud-formation.png)
+
+Subsequent deployments of the pipeline will use AWS CodeDeploy to perform a blue/green deployment to shift traffic from the Original to Replacement endpoint over a period of 5 minutes.
+
+![code-pipeline](docs/code-deploy.gif)
 
 Finally, the SageMaker Notebook provides the ability to retrieve the results from the Monitoring Schedule that is run on the hour.
 
@@ -90,17 +106,3 @@ Following is a lis of approximate running times fo the pipeline
 * Launch Dev Endpoint: 10 minutes
 * Launch Prod Endpoint: 25 minutes
 * Monitoring Schedule: Runs on the hour
-
-### Parameters
-
-Folling is a list of the paramters for running the cloud formation.
-
-<!-- ### pipeline.yaml -->
-Parameters | Description
----------- | -----------
-Email | The email where CodePipeline will send SNS notifications.
-GitHubUser | GitHub Username.
-GitHubToken | A Secret OAuthToken with access to the GitHub repo.
-GitHubRepo | The name (not URL) of the GitHub repository to pull from.
-GitHubBranch | The name (not URL) of the GitHub repository’s branch to use.
-ModelName | The short name to namespace all the mlops resources.
