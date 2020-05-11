@@ -75,14 +75,14 @@ def get_dev_params(model_name, job_id, role, image_uri):
             "ModelName": model_name,
             "TrainJobId": job_id,
             "MLOpsRoleArn": role,
-            "VariantName": "DevTraffic",
+            "VariantName": "dev-{}".format(model_name),
         }
     }
 
 def get_prd_params(model_name, job_id, role, image_uri):
     dev_params = get_dev_params(model_name, job_id, role, image_uri)['Parameters']
     prod_params = {
-        "VariantName": "PrdTraffic",
+        "VariantName": "prd-{}".format(model_name),
         "ScheduleMetricName": 'feature_baseline_drift_total_amount',
         "ScheduleMetricThreshold": str('20') 
     }    

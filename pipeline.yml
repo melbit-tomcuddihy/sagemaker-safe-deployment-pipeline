@@ -1,10 +1,10 @@
 # Delete the stack: 
 #
-# aws cloudformation delete-stack --stack-name iris-model-pipeline
+# aws cloudformation delete-stack --stack-name sagemaker-safe-deployment
 #
 # Create the stack:
 #
-# aws cloudformation create-stack --stack-name iris-model-pipeline \
+# aws cloudformation create-stack --stack-name sagemaker-safe-deployment \
 #   --template-body file://pipeline.yml \
 #   --capabilities CAPABILITY_IAM \
 #   --parameters \
@@ -33,6 +33,9 @@ Parameters:
     Default: nyctaxi
     Type: String
     Description: Name of the model
+    MinLength: 1
+    MaxLength: 15 # Limited to this due to mlops-{model}-{dev/prd}-{pipeline-executionid}
+    AllowedPattern: ^[a-zA-Z0-9](-*[a-zA-Z0-9])*
   NotebookInstanceType:
     Type: String
     Default: ml.t3.medium
@@ -50,7 +53,7 @@ Resources:
   ArtifactBucket:
     Type: AWS::S3::Bucket
     Properties: 
-      BucketName: !Sub ${AWS::StackName}-artifact
+      BucketName: !Sub ${AWS::StackName}-artifact-${AWS::Region}-${AWS::AccountId}
       AccessControl: Private
       VersioningConfiguration:
         Status: Enabled

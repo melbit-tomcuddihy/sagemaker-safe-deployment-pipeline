@@ -235,6 +235,13 @@ def get_processing_request(event, dataset_format=DatasetFormat.csv()):
         "RoleArn": props["PassRoleArn"],
     }
 
+    # Add experiment tracking
+    request["ExperimentConfig"] = {
+        "ExperimentName": props["ExperimentName"],
+        "TrialName": props["TrialName"],
+        "TrialComponentDisplayName": 'Baseline'
+    }
+
     # Add optional pre/processing scripts
 
     if props.get('RecordPreprocessorSourceUri'):

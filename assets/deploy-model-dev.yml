@@ -14,7 +14,7 @@ Parameters:
     Description: Id of the Codepipeline + SagemakerJobs
   MLOpsRoleArn:
     Type: String
-    Description: The MLOps role
+    Description: The role for executing the deployment
   VariantName:
     Type: String
     Description: Name of the endpoint variant

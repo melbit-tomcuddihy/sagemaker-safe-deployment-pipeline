@@ -23,6 +23,8 @@ Resources:
       BaselineInputUri: !Ref BaselineInputUri
       BaselineResultsUri: !Sub s3://sagemaker-${AWS::Region}-${AWS::AccountId}/${ModelName}/monitoring/baseline/mlops-${ModelName}-pbl-${TrainJobId}
       PassRoleArn: !Ref MLOpsRoleArn
+      ExperimentName: !Ref ModelName
+      TrialName: !Ref TrainJobId
 
 Outputs:
   ProcessingJobName:
