@@ -17,6 +17,7 @@ Parameters:
     NoEcho: true
     Description: Secret. It might look something like 9b189a1654643522561f7b3ebd44a1531a4287af OAuthToken with access to Repo. Go to https://github.com/settings/tokens
     Type: String
+    MinLength: 1
   GitHubUser:
     Default: brightsparc
     Description: GitHub UserName
@@ -26,7 +27,7 @@ Parameters:
     Type: String
     Description: Name of the GitHub repository
   GitHubBranch:
-    Default: master
+    Default: ml-lab
     Type: String
     Description: Name of the branch the code is located
   ModelName:
@@ -53,7 +54,7 @@ Resources:
   ArtifactBucket:
     Type: AWS::S3::Bucket
     Properties: 
-      BucketName: !Sub ${AWS::StackName}-artifact-${AWS::Region}-${AWS::AccountId}
+      BucketName: !Sub ${ModelName}-artifact-${AWS::Region}-${AWS::AccountId}
       AccessControl: Private
       VersioningConfiguration:
         Status: Enabled
@@ -61,7 +62,7 @@ Resources:
   BuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
-      Name: !Sub ${AWS::StackName}-build
+      Name: !Sub ${ModelName}-build
       Description: Builds the assets required for executing the rest of pipeline
       ServiceRole: !GetAtt MLOpsRole.Arn
       Artifacts:
@@ -78,7 +79,7 @@ Resources:
   CreateExperiment:
     Type: "AWS::Lambda::Function"
     Properties: 
-      FunctionName: !Sub ${AWS::StackName}-create-experiment
+      FunctionName: !Sub ${ModelName}-create-experiment
       Handler: index.lambda_handler
       MemorySize: 512
       Role: !GetAtt MLOpsRole.Arn 
@@ -146,7 +147,7 @@ Resources:
   DeployPipeline:
     Type: "AWS::CodePipeline::Pipeline"
     Properties:
-      Name: !Sub ${AWS::StackName}
+      Name: !Sub ${ModelName}
       RoleArn: !GetAtt MLOpsRole.Arn
       ArtifactStore:
           Type: S3
@@ -181,7 +182,7 @@ Resources:
                 - Name: DataSourceOutput
               Configuration:
                 S3Bucket: !Ref ArtifactBucket
-                S3ObjectKey: !Sub ${AWS::StackName}/data-source.zip
+                S3ObjectKey: !Sub ${ModelName}/data-source.zip
               RunOrder: 1
         -
           Name: Build
@@ -247,7 +248,7 @@ Resources:
               Configuration:
                 ActionMode: REPLACE_ON_FAILURE
                 RoleArn: !GetAtt MLOpsRole.Arn
-                StackName: !Sub ${AWS::StackName}-training-job
+                StackName: !Sub ${ModelName}-training-job
                 TemplateConfiguration: BuildOutput::training-job.json
                 TemplatePath: BuildOutput::training-job.yml
               RunOrder: 2
@@ -263,7 +264,7 @@ Resources:
               Configuration:
                 ActionMode: REPLACE_ON_FAILURE
                 RoleArn: !GetAtt MLOpsRole.Arn
-                StackName: !Sub ${AWS::StackName}-suggest-baseline
+                StackName: !Sub ${ModelName}-suggest-baseline
                 TemplateConfiguration: BuildOutput::suggest-baseline.json
                 TemplatePath: BuildOutput::suggest-baseline.yml
               RunOrder: 2
@@ -282,7 +283,7 @@ Resources:
               Configuration:
                 ActionMode: REPLACE_ON_FAILURE
                 RoleArn: !GetAtt MLOpsRole.Arn
-                StackName: !Sub ${AWS::StackName}-deploy-dev
+                StackName: !Sub ${ModelName}-deploy-dev
                 TemplateConfiguration: BuildOutput::deploy-model-dev.json
                 TemplatePath: BuildOutput::deploy-model-dev.yml
               RunOrder: 1
@@ -294,7 +295,7 @@ Resources:
                 Version: 1
                 Provider: Manual
               Configuration:
-                ExternalEntityLink: !Sub https://${AWS::StackName}-notebook.notebook.${AWS::Region}.sagemaker.aws/notebooks/sagemaker-safe-deployment-pipeline/notebook/mlops.ipynb
+                ExternalEntityLink: !Sub https://${ModelName}-notebook.notebook.${AWS::Region}.sagemaker.aws/notebooks/sagemaker-safe-deployment-pipeline/notebook/mlops.ipynb
                 CustomData: 'Shall this model be put into production?'
               RunOrder: 2
         -
@@ -315,7 +316,7 @@ Resources:
                 ActionMode: CREATE_UPDATE
                 RoleArn: !GetAtt MLOpsRole.Arn
                 Capabilities: CAPABILITY_IAM,CAPABILITY_AUTO_EXPAND
-                StackName: !Sub ${AWS::StackName}-deploy-prd
+                StackName: !Sub ${ModelName}-deploy-prd
                 TemplateConfiguration: BuildOutput::template-model-prd.json
                 TemplatePath: BuildOutput::template-model-prd.yml
               RunOrder: 1
@@ -323,7 +324,7 @@ Resources:
   NotebookInstance:
     Type: "AWS::SageMaker::NotebookInstance"
     Properties:
-      NotebookInstanceName: !Sub ${AWS::StackName}-notebook
+      NotebookInstanceName: !Sub ${ModelName}-notebook
       InstanceType: !Ref NotebookInstanceType
       RoleArn: !GetAtt MLOpsRole.Arn
       LifecycleConfigName: !GetAtt NotebookInstanceLifecycleConfig.NotebookInstanceLifecycleConfigName
@@ -335,7 +336,7 @@ Resources:
   NotebookInstanceLifecycleConfig:
     Type: "AWS::SageMaker::NotebookInstanceLifecycleConfig"
     Properties:
-      NotebookInstanceLifecycleConfigName: !Sub ${AWS::StackName}-lifecycle-config
+      NotebookInstanceLifecycleConfigName: !Sub ${ModelName}-lifecycle-config
       OnStart:
         - Content: 
             Fn::Base64:
@@ -343,7 +344,7 @@ Resources:
                 #!/bin/bash
                 touch /etc/profile.d/jupyter-env.sh
                 echo "export ARTIFACT_BUCKET=${ArtifactBucket}" >> /etc/profile.d/jupyter-env.sh
-                echo "export PIPELINE_NAME=${AWS::StackName}" >> /etc/profile.d/jupyter-env.sh
+                echo "export PIPELINE_NAME=${ModelName}" >> /etc/profile.d/jupyter-env.sh
                 echo "export MODEL_NAME=${ModelName}" >> /etc/profile.d/jupyter-env.sh
 
   MLOpsRole:
