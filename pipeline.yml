@@ -27,7 +27,7 @@ Parameters:
     Type: String
     Description: Name of the GitHub repository
   GitHubBranch:
-    Default: ml-lab
+    Default: master
     Type: String
     Description: Name of the branch the code is located
   ModelName:
