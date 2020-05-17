@@ -42,7 +42,7 @@ Resources:
       ProductionVariants:
       - InitialInstanceCount: 2
         InitialVariantWeight: 1.0
-        InstanceType: ml.c5.large
+        InstanceType: ml.m5.large
         ModelName: !GetAtt Model.ModelName
         VariantName: !Ref VariantName
       EndpointConfigName: !Sub mlops-${ModelName}-pec-${TrainJobId}

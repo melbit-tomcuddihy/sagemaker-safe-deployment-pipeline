@@ -36,7 +36,7 @@ Resources:
       ProductionVariants:
       - InitialInstanceCount: 1
         InitialVariantWeight: 1.0
-        InstanceType: ml.t2.large
+        InstanceType: ml.t2.medium
         ModelName: !GetAtt Model.ModelName
         VariantName: !Ref VariantName
       EndpointConfigName: !Sub mlops-${ModelName}-dec-${TrainJobId}

@@ -1,23 +1,5 @@
-# Delete the stack: 
-#
-# aws cloudformation delete-stack --stack-name sagemaker-safe-deployment
-#
-# Create the stack:
-#
-# aws cloudformation create-stack --stack-name sagemaker-safe-deployment \
-#   --template-body file://pipeline.yml \
-#   --capabilities CAPABILITY_IAM \
-#   --parameters \
-#       ParameterKey=GitHubUser,ParameterValue=<GitHub Username> \
-#       ParameterKey=GitHubToken,ParameterValue=<GitHub Token>
-
 Description: Create a CodePipeline for a Machine Learning Model
 Parameters:
-  GitHubToken:
-    NoEcho: true
-    Description: Secret. It might look something like 9b189a1654643522561f7b3ebd44a1531a4287af OAuthToken with access to Repo. Go to https://github.com/settings/tokens
-    Type: String
-    MinLength: 1
   GitHubUser:
     Default: brightsparc
     Description: GitHub UserName
@@ -39,7 +21,7 @@ Parameters:
     AllowedPattern: ^[a-zA-Z0-9](-*[a-zA-Z0-9])*
   NotebookInstanceType:
     Type: String
-    Default: ml.t3.medium
+    Default: ml.t3.large
     AllowedValues:
       - ml.t3.medium
       - ml.t3.large
@@ -47,17 +29,30 @@ Parameters:
       - ml.m5.large
       - ml.m5.xlarge
       - ml.m5.2xlarge
-    Description: Enter ml instance size for notebook. Default is ml.t3.medium
+    Description: Enter ml instance size for notebook. Default is ml.t3.large
 
-Resources:
-
+Resources:  
   ArtifactBucket:
     Type: AWS::S3::Bucket
-    Properties: 
+    Properties:
       BucketName: !Sub ${ModelName}-artifact-${AWS::Region}-${AWS::AccountId}
       AccessControl: Private
       VersioningConfiguration:
         Status: Enabled
+
+  CodeCommitRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Ref GitHubRepo
+      RepositoryDescription: !Sub SageMaker safe deploiyment pipeline for ${ModelName}
+
+  SageMakerCodeRepository:
+    Type: AWS::SageMaker::CodeRepository
+    Properties: 
+      CodeRepositoryName: !Ref GitHubRepo
+      GitConfig:
+        RepositoryUrl: !GetAtt CodeCommitRepository.CloneUrlHttp
+        Branch: !Ref GitHubBranch
 
   BuildProject:
     Type: AWS::CodeBuild::Project
@@ -75,17 +70,17 @@ Resources:
         Type: CODEPIPELINE
         BuildSpec: model/buildspec.yml
       TimeoutInMinutes: 30
-    
+
   CreateExperiment:
     Type: "AWS::Lambda::Function"
-    Properties: 
+    Properties:
       FunctionName: !Sub ${ModelName}-create-experiment
       Handler: index.lambda_handler
       MemorySize: 512
-      Role: !GetAtt MLOpsRole.Arn 
+      Role: !GetAtt MLOpsRole.Arn
       Runtime: python3.6
       Timeout: 60
-      Code: 
+      Code:
         ZipFile: !Sub |
           import boto3
           import io
@@ -150,29 +145,24 @@ Resources:
       Name: !Sub ${ModelName}
       RoleArn: !GetAtt MLOpsRole.Arn
       ArtifactStore:
-          Type: S3
-          Location:
-            Ref: ArtifactBucket
+        Type: S3
+        Location:
+          Ref: ArtifactBucket
       Stages:
-        -
-          Name: Source
-          Actions: 
-            - 
-              Name: GitSource
-              ActionTypeId: 
+        - Name: Source
+          Actions:
+            - Name: GitSource
+              ActionTypeId:
                 Category: Source
-                Owner: ThirdParty
+                Owner: AWS
+                Provider: CodeCommit
                 Version: 1
-                Provider: GitHub
-              OutputArtifacts: 
+              Configuration:
+                RepositoryName: !Ref GitHubRepo
+                BranchName: !Ref GitHubBranch
+              OutputArtifacts:
                 - Name: ModelSourceOutput
-              Configuration: 
-                Owner: !Ref GitHubUser
-                Repo: !Ref GitHubRepo
-                Branch: !Ref GitHubBranch
-                OAuthToken: !Ref GitHubToken
-            -
-              Name: DataSource
+            - Name: DataSource
               ActionTypeId:
                 Category: Source
                 Owner: AWS
@@ -184,11 +174,9 @@ Resources:
                 S3Bucket: !Ref ArtifactBucket
                 S3ObjectKey: !Sub ${ModelName}/data-source.zip
               RunOrder: 1
-        -
-          Name: Build
+        - Name: Build
           Actions:
-            -
-              Name: BuildModel
+            - Name: BuildModel
               InputArtifacts:
                 - Name: ModelSourceOutput
                 - Name: DataSourceOutput
@@ -204,8 +192,7 @@ Resources:
                 PrimarySource: ModelSourceOutput
                 EnvironmentVariables: !Sub '[{"name":"DATA_BUCKET","value":"sagemaker-${AWS::Region}-${AWS::AccountId}","type":"PLAINTEXT"},{"name":"MODEL_NAME","value":"${ModelName}","type":"PLAINTEXT"},{"name":"ROLE_ARN","value":"${MLOpsRole.Arn}","type":"PLAINTEXT"},{"name":"ARTIFACT_BUCKET","value":"${ArtifactBucket}","type":"PLAINTEXT"}]'
               RunOrder: 1
-            -
-              Name: CustomResource
+            - Name: CustomResource
               InputArtifacts:
                 - Name: BuildOutput
               ActionTypeId:
@@ -220,11 +207,9 @@ Resources:
                 StackName: sagemaker-custom-resource # Use global name to re-use across templates
                 TemplatePath: BuildOutput::template-custom-resource.yml
               RunOrder: 2
-        -
-          Name: Train
+        - Name: Train
           Actions:
-            -
-              Name: CreateExperiment
+            - Name: CreateExperiment
               InputArtifacts:
                 - Name: BuildOutput
               ActionTypeId:
@@ -233,11 +218,10 @@ Resources:
                 Version: 1
                 Provider: Lambda
               Configuration:
-                  FunctionName: !Ref CreateExperiment
-                  UserParameters: !Sub mlops-pipeline-${ModelName}
+                FunctionName: !Ref CreateExperiment
+                UserParameters: !Sub mlops-pipeline-${ModelName}
               RunOrder: 1
-            - 
-              Name: TrainModel
+            - Name: TrainModel
               InputArtifacts:
                 - Name: BuildOutput
               ActionTypeId:
@@ -252,8 +236,7 @@ Resources:
                 TemplateConfiguration: BuildOutput::training-job.json
                 TemplatePath: BuildOutput::training-job.yml
               RunOrder: 2
-            -
-              Name: SuggestBaseline
+            - Name: SuggestBaseline
               InputArtifacts:
                 - Name: BuildOutput
               ActionTypeId:
@@ -268,11 +251,9 @@ Resources:
                 TemplateConfiguration: BuildOutput::suggest-baseline.json
                 TemplatePath: BuildOutput::suggest-baseline.yml
               RunOrder: 2
-        -
-          Name: DeployDev
+        - Name: DeployDev
           Actions:
-            - 
-              Name: DeployModelDev
+            - Name: DeployModelDev
               InputArtifacts:
                 - Name: BuildOutput
               ActionTypeId:
@@ -287,8 +268,7 @@ Resources:
                 TemplateConfiguration: BuildOutput::deploy-model-dev.json
                 TemplatePath: BuildOutput::deploy-model-dev.yml
               RunOrder: 1
-            -
-              Name: ApproveDeploy
+            - Name: ApproveDeploy
               ActionTypeId:
                 Category: Approval
                 Owner: AWS
@@ -296,13 +276,11 @@ Resources:
                 Provider: Manual
               Configuration:
                 ExternalEntityLink: !Sub https://${ModelName}-notebook.notebook.${AWS::Region}.sagemaker.aws/notebooks/sagemaker-safe-deployment-pipeline/notebook/mlops.ipynb
-                CustomData: 'Shall this model be put into production?'
+                CustomData: "Shall this model be put into production?"
               RunOrder: 2
-        -
-          Name: DeployPrd
+        - Name: DeployPrd
           Actions:
-            - 
-              Name: DeployModelPrd
+            - Name: DeployModelPrd
               InputArtifacts:
                 - Name: BuildOutput
               OutputArtifacts:
@@ -311,7 +289,7 @@ Resources:
                 Category: Deploy
                 Owner: AWS
                 Version: 1
-                Provider: CloudFormation                
+                Provider: CloudFormation
               Configuration:
                 ActionMode: CREATE_UPDATE
                 RoleArn: !GetAtt MLOpsRole.Arn
@@ -328,8 +306,8 @@ Resources:
       InstanceType: !Ref NotebookInstanceType
       RoleArn: !GetAtt MLOpsRole.Arn
       LifecycleConfigName: !GetAtt NotebookInstanceLifecycleConfig.NotebookInstanceLifecycleConfigName
-      DefaultCodeRepository: !Sub https://github.com/${GitHubUser}/${GitHubRepo}.git
-    DependsOn: 
+      DefaultCodeRepository: !Ref GitHubRepo
+    DependsOn:
       - NotebookInstanceLifecycleConfig
       - DeployPipeline
 
@@ -337,8 +315,36 @@ Resources:
     Type: "AWS::SageMaker::NotebookInstanceLifecycleConfig"
     Properties:
       NotebookInstanceLifecycleConfigName: !Sub ${ModelName}-lifecycle-config
+      OnCreate:
+        - Content:
+            Fn::Base64:
+              Fn::Sub: |
+                #!/bin/bash
+
+                # Clone the public github repo, and push it to a local codecommit branch
+
+                export HOME=/root/
+
+                echo "Configuring github for AWS credentials"
+                git config --global credential.helper '!aws codecommit credential-helper $@'
+                git config --global credential.UseHttpPath true
+                cp /root/.gitconfig /home/ec2-user/ && chown ec2-user:ec2-user /home/ec2-user/.gitconfig
+
+                echo "Let's clone the github source and push it to codecommit repo"
+                git clone -b ${GitHubBranch} "https://github.com/${GitHubUser}/${GitHubRepo}.git" /tmp/mlops-repo
+                cd /tmp/mlops-repo
+                git remote add codecommit ${CodeCommitRepository.CloneUrlHttp}
+                git push --set-upstream codecommit ${GitHubBranch}
+
+                echo "Let's clone the athena ML-QL code"
+                git clone https://gist.github.com/brightsparc/87cb98382e0d81cada6c565a8ffb43ac /home/ec2-user/SageMaker/athena-ml-sql
+                chown -R ec2-user:ec2-user /home/ec2-user/SageMaker/athena-ml-sql
+
+                echo "Let's clone the model debugging and monitoring"
+                git clone https://github.com/aws-samples/reinvent2019-aim362-sagemaker-debugger-model-monitor /home/ec2-user/SageMaker/sagemaker-debugger-model-monitor
+                chown -R ec2-user:ec2-user /home/ec2-user/SageMaker/sagemaker-debugger-model-monitor
       OnStart:
-        - Content: 
+        - Content:
             Fn::Base64:
               Fn::Sub: |
                 #!/bin/bash
@@ -349,60 +355,52 @@ Resources:
 
   MLOpsRole:
     Type: "AWS::IAM::Role"
-    Properties: 
-      AssumeRolePolicyDocument: 
+    Properties:
+      AssumeRolePolicyDocument:
         Version: "2012-10-17"
-        Statement: 
-          - 
-            Effect: "Allow"
-            Principal: 
-              Service: 
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
                 - "sagemaker.amazonaws.com"
-            Action: 
+            Action:
               - "sts:AssumeRole"
-          - 
-            Effect: "Allow"
-            Principal: 
-              Service: 
+          - Effect: "Allow"
+            Principal:
+              Service:
                 - "cloudformation.amazonaws.com"
-            Action: 
+            Action:
               - "sts:AssumeRole"
-          - 
-            Effect: "Allow"
-            Principal: 
-              Service: 
+          - Effect: "Allow"
+            Principal:
+              Service:
                 - "codepipeline.amazonaws.com"
-            Action: 
+            Action:
               - "sts:AssumeRole"
-          - 
-            Effect: "Allow"
-            Principal: 
-              Service: 
+          - Effect: "Allow"
+            Principal:
+              Service:
                 - "codebuild.amazonaws.com"
-            Action: 
+            Action:
               - "sts:AssumeRole"
-          - 
-            Effect: "Allow"
-            Principal: 
-              Service: 
+          - Effect: "Allow"
+            Principal:
+              Service:
                 - "lambda.amazonaws.com"
-            Action: 
+            Action:
               - "sts:AssumeRole"
-          - 
-            Effect: "Allow"
-            Principal: 
-              Service: 
+          - Effect: "Allow"
+            Principal:
+              Service:
                 - "events.amazonaws.com"
-            Action: 
+            Action:
               - "sts:AssumeRole"
       Path: "/"
-      Policies: 
-        - 
-          PolicyName: "Admin"
-          PolicyDocument: 
+      Policies:
+        - PolicyName: "Admin"
+          PolicyDocument:
             Version: "2012-10-17"
-            Statement: 
-              - 
-                Effect: "Allow"
+            Statement:
+              - Effect: "Allow"
                 Action: "*"
                 Resource: "*"
