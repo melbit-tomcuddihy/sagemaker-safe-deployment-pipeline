@@ -20,7 +20,6 @@ Parameters:
     Description: Name of the endpoint variant
 
 Resources:
-
   Model:
     Type: "AWS::SageMaker::Model"
     Properties:
@@ -29,16 +28,16 @@ Resources:
         Image: !Ref ImageRepoUri
         ModelDataUrl: !Sub s3://sagemaker-${AWS::Region}-${AWS::AccountId}/${ModelName}/mlops-${ModelName}-${TrainJobId}/output/model.tar.gz
       ExecutionRoleArn: !Ref MLOpsRoleArn
-  
+
   EndpointConfig:
     Type: "AWS::SageMaker::EndpointConfig"
     Properties:
       ProductionVariants:
-      - InitialInstanceCount: 1
-        InitialVariantWeight: 1.0
-        InstanceType: ml.t2.medium
-        ModelName: !GetAtt Model.ModelName
-        VariantName: !Ref VariantName
+        - InitialInstanceCount: 1
+          InitialVariantWeight: 1.0
+          InstanceType: ml.t2.medium
+          ModelName: !GetAtt Model.ModelName
+          VariantName: !Ref VariantName
       EndpointConfigName: !Sub mlops-${ModelName}-dec-${TrainJobId}
       Tags:
         - Key: Name
@@ -54,7 +53,3 @@ Resources:
         - Key: Name
           Value: !Sub mlops-${ModelName}-dev-${TrainJobId}
     DependsOn: EndpointConfig
-
-  
-
-  

@@ -1,3 +1,15 @@
+# Delete the stack:
+#
+# aws cloudformation delete-stack --stack-name sagemaker-safe-deployment
+#
+# Create the stack:
+#
+# aws cloudformation create-stack --stack-name sagemaker-safe-deployment \
+#   --template-body file://codecommit-pipeline.yml \
+#   --capabilities CAPABILITY_IAM \
+#   --parameters \
+#       ParameterKey=ModelName,ParameterValue=<Model Name>
+
 Description: Create a CodePipeline for a Machine Learning Model
 Parameters:
   GitHubUser:
@@ -31,7 +43,7 @@ Parameters:
       - ml.m5.2xlarge
     Description: Enter ml instance size for notebook. Default is ml.t3.large
 
-Resources:  
+Resources:
   ArtifactBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -48,7 +60,7 @@ Resources:
 
   SageMakerCodeRepository:
     Type: AWS::SageMaker::CodeRepository
-    Properties: 
+    Properties:
       CodeRepositoryName: !Ref GitHubRepo
       GitConfig:
         RepositoryUrl: !GetAtt CodeCommitRepository.CloneUrlHttp
@@ -335,14 +347,6 @@ Resources:
                 cd /tmp/mlops-repo
                 git remote add codecommit ${CodeCommitRepository.CloneUrlHttp}
                 git push --set-upstream codecommit ${GitHubBranch}
-
-                echo "Let's clone the athena ML-QL code"
-                git clone https://gist.github.com/brightsparc/87cb98382e0d81cada6c565a8ffb43ac /home/ec2-user/SageMaker/athena-ml-sql
-                chown -R ec2-user:ec2-user /home/ec2-user/SageMaker/athena-ml-sql
-
-                echo "Let's clone the model debugging and monitoring"
-                git clone https://github.com/aws-samples/reinvent2019-aim362-sagemaker-debugger-model-monitor /home/ec2-user/SageMaker/sagemaker-debugger-model-monitor
-                chown -R ec2-user:ec2-user /home/ec2-user/SageMaker/sagemaker-debugger-model-monitor
       OnStart:
         - Content:
             Fn::Base64:

@@ -14,9 +14,8 @@ Resources:
   SagemakerTrainingJob:
     Type: Custom::TrainingJob
     Properties:
-      ServiceToken: 
-        !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:sagemaker-cfn-training-job'
+      ServiceToken: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:sagemaker-cfn-training-job"
       TrainingJobName: !Sub mlops-${ModelName}-${TrainJobId}
-      TrainingJobRequest: !Ref TrainJobRequest      
+      TrainingJobRequest: !Ref TrainJobRequest
       ExperimentName: !Ref ModelName
       TrialName: !Ref TrainJobId

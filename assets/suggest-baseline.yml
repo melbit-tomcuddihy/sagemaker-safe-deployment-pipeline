@@ -17,8 +17,7 @@ Resources:
   SagemakerSuggestBaseline:
     Type: Custom::SuggestBaseline
     Properties:
-      ServiceToken:
-        !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:sagemaker-cfn-suggest-baseline
+      ServiceToken: !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:sagemaker-cfn-suggest-baseline
       ProcessingJobName: !Sub mlops-${ModelName}-pbl-${TrainJobId}
       BaselineInputUri: !Ref BaselineInputUri
       BaselineResultsUri: !Sub s3://sagemaker-${AWS::Region}-${AWS::AccountId}/${ModelName}/monitoring/baseline/mlops-${ModelName}-pbl-${TrainJobId}

@@ -1,19 +1,20 @@
+import json
+import logging
+
 import boto3
 import botocore
-import logging
-import json
-
-from crhelper import CfnResource
 from botocore.exceptions import ClientError
 
+from crhelper import CfnResource
 
 logger = logging.getLogger(__name__)
-sm = boto3.client('sagemaker')
+sm = boto3.client("sagemaker")
 
 # cfnhelper makes it easier to implement a CloudFormation custom resource
 helper = CfnResource()
 
 # CFN Handlers
+
 
 def lambda_handler(event, context):
     helper(event, context)
@@ -27,6 +28,7 @@ def create_handler(event, context):
     """
     return create_processing_job(event)
 
+
 @helper.delete
 def delete_handler(event, context):
     """
@@ -34,6 +36,7 @@ def delete_handler(event, context):
     """
     processing_job_name = get_processing_job_name(event)
     stop_processing_job(processing_job_name)
+
 
 @helper.poll_create
 @helper.poll_update
@@ -43,8 +46,9 @@ def poll_create(event, context):
     CloudFormation polls again.
     """
     processing_job_name = get_processing_job_name(event)
-    logger.info('Polling for creation of processing job: %s', processing_job_name)
+    logger.info("Polling for creation of processing job: %s", processing_job_name)
     return is_processing_job_ready(processing_job_name)
+
 
 @helper.poll_delete
 def poll_delete(event, context):
@@ -52,93 +56,113 @@ def poll_delete(event, context):
     Return true if the resource has been stopped.  
     """
     processing_job_name = get_processing_job_name(event)
-    logger.info('Polling for stopped processing job: %s', processing_job_name)
+    logger.info("Polling for stopped processing job: %s", processing_job_name)
     return stop_processing_job(processing_job_name)
+
 
 # Helper Functions
 
+
 def get_model_monitor_container_uri(region):
-    container_uri_format = '{0}.dkr.ecr.{1}.amazonaws.com/sagemaker-model-monitor-analyzer'
+    container_uri_format = (
+        "{0}.dkr.ecr.{1}.amazonaws.com/sagemaker-model-monitor-analyzer"
+    )
 
     regions_to_accounts = {
-        'eu-north-1': '895015795356',
-        'me-south-1': '607024016150',
-        'ap-south-1': '126357580389',
-        'us-east-2': '680080141114',
-        'us-east-2': '777275614652',
-        'eu-west-1': '468650794304',
-        'eu-central-1': '048819808253',
-        'sa-east-1': '539772159869',
-        'ap-east-1': '001633400207',
-        'us-east-1': '156813124566',
-        'ap-northeast-2': '709848358524',
-        'eu-west-2': '749857270468',
-        'ap-northeast-1': '574779866223',
-        'us-west-2': '159807026194',
-        'us-west-1': '890145073186',
-        'ap-southeast-1': '245545462676',
-        'ap-southeast-2': '563025443158',
-        'ca-central-1': '536280801234'
+        "eu-north-1": "895015795356",
+        "me-south-1": "607024016150",
+        "ap-south-1": "126357580389",
+        "us-east-2": "680080141114",
+        "us-east-2": "777275614652",
+        "eu-west-1": "468650794304",
+        "eu-central-1": "048819808253",
+        "sa-east-1": "539772159869",
+        "ap-east-1": "001633400207",
+        "us-east-1": "156813124566",
+        "ap-northeast-2": "709848358524",
+        "eu-west-2": "749857270468",
+        "ap-northeast-1": "574779866223",
+        "us-west-2": "159807026194",
+        "us-west-1": "890145073186",
+        "ap-southeast-1": "245545462676",
+        "ap-southeast-2": "563025443158",
+        "ca-central-1": "536280801234",
     }
 
     container_uri = container_uri_format.format(regions_to_accounts[region], region)
     return container_uri
 
+
 def get_processing_job_name(event):
-    return event['ResourceProperties']['ProcessingJobName']
+    return event["ResourceProperties"]["ProcessingJobName"]
+
 
 def is_processing_job_ready(processing_job_name):
     is_ready = False
 
     processing_job = sm.describe_processing_job(ProcessingJobName=processing_job_name)
-    status = processing_job['ProcessingJobStatus']
+    status = processing_job["ProcessingJobStatus"]
 
-    if status == 'Stopped' or status == 'Completed':
-        logger.info('Processing Job (%s) is %s', processing_job_name, status)
+    if status == "Stopped" or status == "Completed":
+        logger.info("Processing Job (%s) is %s", processing_job_name, status)
         is_ready = True
-    elif status == 'InProgress' or status == 'Stopping':
-        logger.info('Processing Job (%s) still in progress, waiting and polling again...', processing_job_name)
+    elif status == "InProgress" or status == "Stopping":
+        logger.info(
+            "Processing Job (%s) still in progress, waiting and polling again...",
+            processing_job_name,
+        )
     else:
-        raise Exception('Processing Job ({}) has unexpected status: {}'.format(processing_job_name, status))
+        raise Exception(
+            "Processing Job ({}) has unexpected status: {}".format(
+                processing_job_name, status
+            )
+        )
 
     return is_ready
+
 
 def create_processing_job(event):
     processing_job_name = get_processing_job_name(event)
 
     request, constraints_uri, statistics_uri = get_processing_request(event)
 
-    logger.info('Creating processing job with name: %s', processing_job_name)
+    logger.info("Creating processing job with name: %s", processing_job_name)
     logger.debug(json.dumps(request))
     response = sm.create_processing_job(**request)
 
     # Update Output Parameters
-    helper.Data['ProcessingJobName'] = processing_job_name
-    helper.Data['BaselineConstraintsUri'] = constraints_uri
-    helper.Data['BaselineStatisticsUri'] = statistics_uri
-    helper.Data['Arn'] = response["ProcessingJobArn"]
-    return helper.Data['Arn']
+    helper.Data["ProcessingJobName"] = processing_job_name
+    helper.Data["BaselineConstraintsUri"] = constraints_uri
+    helper.Data["BaselineStatisticsUri"] = statistics_uri
+    helper.Data["Arn"] = response["ProcessingJobArn"]
+    return helper.Data["Arn"]
+
 
 def stop_processing_job(processing_job_name):
     try:
-        processing_job = sm.describe_processing_job(ProcessingJobName=processing_job_name)
-        status = processing_job['ProcessingJobStatus']
-        if status == 'InProgress':
-            logger.info('Stopping InProgress processing job: %s', processing_job_name)
+        processing_job = sm.describe_processing_job(
+            ProcessingJobName=processing_job_name
+        )
+        status = processing_job["ProcessingJobStatus"]
+        if status == "InProgress":
+            logger.info("Stopping InProgress processing job: %s", processing_job_name)
             sm.stop_processing_job(ProcessingJobName=processing_job_name)
             return False
         else:
-            logger.info('Processing job status: %s, nothing to stop', status)
+            logger.info("Processing job status: %s, nothing to stop", status)
             return True
     except ClientError as e:
         # NOTE: This doesn't return "ResourceNotFound" code, so need to catch
-        if e.response['Error']['Code'] == 'ValidationException' and \
-            'Could not find' in e.response['Error']['Message']:
-            logger.info('Resource not found, nothing to stop')
+        if (
+            e.response["Error"]["Code"] == "ValidationException"
+            and "Could not find" in e.response["Error"]["Message"]
+        ):
+            logger.info("Resource not found, nothing to stop")
             return True
         else:
-            logger.error('Unexpected error while trying to stop processing job')
+            logger.error("Unexpected error while trying to stop processing job")
             raise e
+
 
 class DatasetFormat(object):
     """Represents a Dataset Format that is used when calling a DefaultModelMonitor.
@@ -155,7 +179,12 @@ class DatasetFormat(object):
         Returns:
             dict: JSON string containing DatasetFormat to be used by DefaultModelMonitor.
         """
-        return {"csv": {"header": header, "output_columns_position": output_columns_position}}
+        return {
+            "csv": {
+                "header": header,
+                "output_columns_position": output_columns_position,
+            }
+        }
 
     @staticmethod
     def json(lines=True):
@@ -173,7 +202,12 @@ class DatasetFormat(object):
         Returns:
             dict: JSON string containing DatasetFormat to be used by DefaultModelMonitor.
         """
-        return {"sagemaker_capture_json": {"captureIndexNames":["endpointInput","endpointOutput"]}}
+        return {
+            "sagemaker_capture_json": {
+                "captureIndexNames": ["endpointInput", "endpointOutput"]
+            }
+        }
+
 
 def get_file_name(url):
     try:
@@ -183,21 +217,22 @@ def get_file_name(url):
     a = urlparse(url)
     return os.path.basename(a.path)
 
+
 def get_processing_request(event, dataset_format=DatasetFormat.csv()):
-    props = event['ResourceProperties']
+    props = event["ResourceProperties"]
 
     request = {
         "ProcessingInputs": [
             {
                 "InputName": "baseline_dataset_input",
                 "S3Input": {
-                    "S3Uri": props['BaselineInputUri'],
+                    "S3Uri": props["BaselineInputUri"],
                     "LocalPath": "/opt/ml/processing/input/baseline_dataset_input",
                     "S3DataType": "S3Prefix",
                     "S3InputMode": "File",
                     "S3DataDistributionType": "FullyReplicated",
-                    "S3CompressionType": "None"
-                }
+                    "S3CompressionType": "None",
+                },
             }
         ],
         "ProcessingOutputConfig": {
@@ -205,10 +240,10 @@ def get_processing_request(event, dataset_format=DatasetFormat.csv()):
                 {
                     "OutputName": "monitoring_output",
                     "S3Output": {
-                        "S3Uri": props['BaselineResultsUri'],
+                        "S3Uri": props["BaselineResultsUri"],
                         "LocalPath": "/opt/ml/processing/output",
-                        "S3UploadMode": props.get('S3UploadMode', "EndOfJob")
-                    }
+                        "S3UploadMode": props.get("S3UploadMode", "EndOfJob"),
+                    },
                 }
             ]
         },
@@ -221,16 +256,22 @@ def get_processing_request(event, dataset_format=DatasetFormat.csv()):
             }
         },
         "StoppingCondition": {
-            "MaxRuntimeInSeconds": int(props.get("MaxRuntimeInSeconds", 1800)) # 30 minutes
+            "MaxRuntimeInSeconds": int(
+                props.get("MaxRuntimeInSeconds", 1800)
+            )  # 30 minutes
         },
         "AppSpecification": {
-            "ImageUri": props.get("ImageURI", get_model_monitor_container_uri(helper._region)),
+            "ImageUri": props.get(
+                "ImageURI", get_model_monitor_container_uri(helper._region)
+            ),
         },
         "Environment": {
             "dataset_format": json.dumps(dataset_format),
             "dataset_source": "/opt/ml/processing/input/baseline_dataset_input",
             "output_path": "/opt/ml/processing/output",
-            "publish_cloudwatch_metrics": props.get("PublishCloudwatchMetrics", "Disabled")
+            "publish_cloudwatch_metrics": props.get(
+                "PublishCloudwatchMetrics", "Disabled"
+            ),
         },
         "RoleArn": props["PassRoleArn"],
     }
@@ -239,84 +280,94 @@ def get_processing_request(event, dataset_format=DatasetFormat.csv()):
     request["ExperimentConfig"] = {
         "ExperimentName": props["ExperimentName"],
         "TrialName": props["TrialName"],
-        "TrialComponentDisplayName": 'Baseline'
+        "TrialComponentDisplayName": "Baseline",
     }
 
     # Add optional pre/processing scripts
 
-    if props.get('RecordPreprocessorSourceUri'):
+    if props.get("RecordPreprocessorSourceUri"):
         env = request["Environment"]
-        fn = get_file_name(props['RecordPreprocessorSourceUri'])
-        env["record_preprocessor_script"] = '/opt/ml/processing/code/postprocessing/' + fn
-        request['ProcessingInputs'].append(
+        fn = get_file_name(props["RecordPreprocessorSourceUri"])
+        env["record_preprocessor_script"] = (
+            "/opt/ml/processing/code/postprocessing/" + fn
+        )
+        request["ProcessingInputs"].append(
             {
                 "InputName": "pre_processor_script",
                 "S3Input": {
-                    "S3Uri": props['RecordPreprocessorSourceUri'],
+                    "S3Uri": props["RecordPreprocessorSourceUri"],
                     "LocalPath": "/opt/ml/processing/code/postprocessing",
                     "S3DataType": "S3Prefix",
                     "S3InputMode": "File",
                     "S3DataDistributionType": "FullyReplicated",
-                    "S3CompressionType": "None"
-                }
-            })
+                    "S3CompressionType": "None",
+                },
+            }
+        )
 
-    if props.get('PostAnalyticsProcessorSourceUri'):
+    if props.get("PostAnalyticsProcessorSourceUri"):
         env = request["Environment"]
-        fn = get_file_name(props['PostAnalyticsProcessorSourceUri'])
-        env["post_analytics_processor_script"] = '/opt/ml/processing/code/postprocessing/' + fn
-        request['ProcessingInputs'].append(
+        fn = get_file_name(props["PostAnalyticsProcessorSourceUri"])
+        env["post_analytics_processor_script"] = (
+            "/opt/ml/processing/code/postprocessing/" + fn
+        )
+        request["ProcessingInputs"].append(
             {
                 "InputName": "post_processor_script",
                 "S3Input": {
-                    "S3Uri": props['PostAnalyticsProcessorSourceUri'],
+                    "S3Uri": props["PostAnalyticsProcessorSourceUri"],
                     "LocalPath": "/opt/ml/processing/code/postprocessing",
                     "S3DataType": "S3Prefix",
                     "S3InputMode": "File",
                     "S3DataDistributionType": "FullyReplicated",
-                    "S3CompressionType": "None"
-                }
-            })
+                    "S3CompressionType": "None",
+                },
+            }
+        )
 
     # If this is an update and we have previous baseline & constraints uri add these as inputs
 
-    data = event.get('CrHelperData')
-    if event['RequestType'] == 'Update' and data != None:
+    data = event.get("CrHelperData")
+    if event["RequestType"] == "Update" and data != None:
         # Add baseline constraints
-        logger.debug('Update with constraints: %s', data['BaselineConstraintsUri'])
+        logger.debug("Update with constraints: %s", data["BaselineConstraintsUri"])
         env = request["Environment"]
-        env['baseline_constraints'] = '/opt/ml/processing/baseline/constraints/constraints.json'
-        request['ProcessingInputs'].append(
+        env[
+            "baseline_constraints"
+        ] = "/opt/ml/processing/baseline/constraints/constraints.json"
+        request["ProcessingInputs"].append(
             {
                 "InputName": "constraints",
                 "S3Input": {
-                    "S3Uri": data['BaselineConstraintsUri'],
+                    "S3Uri": data["BaselineConstraintsUri"],
                     "LocalPath": "/opt/ml/processing/baseline/constraints",
                     "S3DataType": "S3Prefix",
                     "S3InputMode": "File",
                     "S3DataDistributionType": "FullyReplicated",
-                    "S3CompressionType": "None"
-                }
-            })
+                    "S3CompressionType": "None",
+                },
+            }
+        )
         # Add baseline statistics
-        logger.debug('Update with statistics: %s', data['BaselineStatisticsUri'])
-        env['baseline_statistics'] = '/opt/ml/processing/baseline/stats/statistics.json'
-        request['ProcessingInputs'].append(
+        logger.debug("Update with statistics: %s", data["BaselineStatisticsUri"])
+        env["baseline_statistics"] = "/opt/ml/processing/baseline/stats/statistics.json"
+        request["ProcessingInputs"].append(
             {
                 "InputName": "baseline",
                 "S3Input": {
-                    "S3Uri": data['BaselineStatisticsUri'],
+                    "S3Uri": data["BaselineStatisticsUri"],
                     "LocalPath": "/opt/ml/processing/baseline/stats",
                     "S3DataType": "S3Prefix",
                     "S3InputMode": "File",
                     "S3DataDistributionType": "FullyReplicated",
-                    "S3CompressionType": "None"
-                }
-            })
+                    "S3CompressionType": "None",
+                },
+            }
+        )
 
     # Build the constraints and statistics URI from the results URI
 
-    constraints_uri = props["BaselineResultsUri"] + '/constraints.json'
-    statistics_uri = props["BaselineResultsUri"] + '/statistics.json'
+    constraints_uri = props["BaselineResultsUri"] + "/constraints.json"
+    statistics_uri = props["BaselineResultsUri"] + "/statistics.json"
 
     return request, constraints_uri, statistics_uri
