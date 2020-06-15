@@ -36,7 +36,7 @@ def get_training_params(
     pytorch_model = PyTorch(
         role=role,
         entry_point='train.py',
-        source_dir = ".",  # the local directory stores all relevant scripts for modeling
+        source_dir = "model/",  # the local directory stores all relevant scripts for modeling
         framework_version='1.5.0',
         train_instance_count=1,
         train_instance_type="ml.p3.8xlarge",
