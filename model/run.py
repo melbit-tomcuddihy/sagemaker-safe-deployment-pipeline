@@ -6,6 +6,7 @@ import time
 
 import boto3
 import sagemaker
+from sagemaker.pytorch import PyTorch
 from sagemaker.amazon.amazon_estimator import get_image_uri
 from sagemaker.workflow.airflow import training_config
 
@@ -27,7 +28,7 @@ def get_training_params(
     hyperparameters,
 ):
     # Create the estimator
-    pytorch_model = sagemaker.pytorch.Pytorch(
+    pytorch_model = Pytorch(
         role,
         entry_point='train.py',
 #         source_dir = "./",  # the local directory stores all relevant scripts for modeling
