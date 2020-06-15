@@ -1,2 +1,4 @@
 boto3
 sagemaker
+sentencepiece==0.1.91
+transformers
