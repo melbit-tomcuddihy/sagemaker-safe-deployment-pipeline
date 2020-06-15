@@ -11,40 +11,43 @@ from sagemaker.workflow.airflow import training_config
 
 
 def get_training_image(region=None):
+    # See https://aws.amazon.com/releasenotes/available-deep-learning-containers-images/
     region = region or boto3.Session().region_name
-    return get_image_uri(region, "xgboost", "0.90-1")
+    return "763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/pytorch-training:1.5.0-gpu-py36-cu101-ubuntu16.04"
+#     return get_image_uri(region, "xgboost", "0.90-1")
 
 
 def get_training_params(
     model_name,
     job_id,
     role,
-    image_uri,
     training_uri,
     validation_uri,
     output_uri,
     hyperparameters,
 ):
     # Create the estimator
-    xgb = sagemaker.estimator.Estimator(
-        image_uri,
+    pytorch_model = sagemaker.pytorch.Pytorch(
         role,
+        entry_point='train.py',
+#         source_dir = "./",  # the local directory stores all relevant scripts for modeling
+        framework_version='1.5.0',
         train_instance_count=1,
-        train_instance_type="ml.m4.xlarge",
+        train_instance_type="ml.p3.8xlarge",
         output_path=output_uri,
     )
-    # Set the hyperparameters overriding with any defaults
-    params = {
-        "max_depth": "9",
-        "eta": "0.2",
-        "gamma": "4",
-        "min_child_weight": "300",
-        "subsample": "0.8",
-        "objective": "reg:linear",
-        "early_stopping_rounds": "10",
-        "num_round": "100",
-    }
-    xgb.set_hyperparameters(**{**params, **hyperparameters})
+#     # Set the hyperparameters overriding with any defaults
+#     params = {
+#         "max_depth": "9",
+#         "eta": "0.2",
+#         "gamma": "4",
+#         "min_child_weight": "300",
+#         "subsample": "0.8",
+#         "objective": "reg:linear",
+#         "early_stopping_rounds": "10",
+#         "num_round": "100",
+#     }
+#     xgb.set_hyperparameters(**{**params, **hyperparameters})
 
     # Specify the data source
     s3_input_train = sagemaker.s3_input(s3_data=training_uri, content_type="csv")
@@ -52,7 +55,7 @@ def get_training_params(
     data = {"train": s3_input_train, "validation": s3_input_val}
 
     # Get the training request
-    request = training_config(xgb, inputs=data, job_name=job_id)
+    request = training_config(pytorch_model, inputs=data, job_name=job_id)
     return {
         "Parameters": {
             "ModelName": model_name,
@@ -175,8 +178,9 @@ def main(
             hyperparameters,
         )
         json.dump(params, f)
+        print("training params: {}".format(json.dumps(params)))
 
-    # Write the baseline params for CFN
+        # Write the baseline params for CFN
     with open(os.path.join(output_dir, "suggest-baseline.json"), "w") as f:
         params = get_suggest_baseline(model_name, job_id, role, baseline_uri)
         json.dump(params, f)
