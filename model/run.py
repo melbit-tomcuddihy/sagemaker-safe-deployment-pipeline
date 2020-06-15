@@ -7,7 +7,7 @@ import time
 import boto3
 import sagemaker
 from sagemaker.pytorch import PyTorch
-from sagemaker.amazon.amazon_estimator import get_image_uri
+from sagemaker.amazon.amazon_estimator import get_inference_image_uri
 from sagemaker.workflow.airflow import training_config
 
 import logging
@@ -19,9 +19,15 @@ def listdir_fullpath(d):
 
 def get_training_image(region=None):
     region = region or boto3.Session().region_name
-#     return get_image_uri(region, "xgboost", "0.90-1")
+#     return get_inference_image_uri(region, "xgboost", "0.90-1")
     # See https://aws.amazon.com/releasenotes/available-deep-learning-containers-images/
     return "763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/pytorch-training:1.5.0-gpu-py36-cu101-ubuntu16.04"
+
+def get_inference_image(region=None):
+    region = region or boto3.Session().region_name
+#     return get_inference_image_uri(region, "xgboost", "0.90-1")
+    # See https://aws.amazon.com/releasenotes/available-deep-learning-containers-images/
+    return "763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/pytorch-inference:1.5.0-cpu-py36-ubuntu16.04"
 
 
 def get_training_params(
@@ -111,10 +117,10 @@ def get_suggest_baseline(model_name, job_id, role, baseline_uri):
     }
 
 
-def get_dev_params(model_name, job_id, role, image_uri):
+def get_dev_params(model_name, job_id, role, inference_image_uri):
     return {
         "Parameters": {
-            "ImageRepoUri": image_uri,
+            "ImageRepoUri": inference_image_uri,
             "ModelName": model_name,
             "TrainJobId": job_id,
             "MLOpsRoleArn": role,
@@ -123,8 +129,8 @@ def get_dev_params(model_name, job_id, role, image_uri):
     }
 
 
-def get_prd_params(model_name, job_id, role, image_uri):
-    dev_params = get_dev_params(model_name, job_id, role, image_uri)["Parameters"]
+def get_prd_params(model_name, job_id, role, inference_image_uri):
+    dev_params = get_dev_params(model_name, job_id, role, inference_image_uri)["Parameters"]
     prod_params = {
         "VariantName": "prd-{}".format(model_name),
         "ScheduleMetricName": "feature_baseline_drift_total_amount",
@@ -154,8 +160,8 @@ def main(
             image_uri = json.load(f)["ImageURI"]
     else:
         # Get the the managed image uri for current region
-        image_uri = get_training_image()
-    print("image uri: {}".format(image_uri))
+        inference_image_uri = get_inference_image()
+    print("Inference image uri: {}".format(inference_image_uri))
 
     with open(os.path.join(data_dir, "inputData.json"), "r") as f:
         input_data = json.load(f)
@@ -208,10 +214,10 @@ def main(
 
     # Write the dev & prod params for CFN
     with open(os.path.join(output_dir, "deploy-model-dev.json"), "w") as f:
-        params = get_dev_params(model_name, job_id, role, image_uri)
+        params = get_dev_params(model_name, job_id, role, inference_image_uri)
         json.dump(params, f)
     with open(os.path.join(output_dir, "template-model-prd.json"), "w") as f:
-        params = get_prd_params(model_name, job_id, role, image_uri)
+        params = get_prd_params(model_name, job_id, role, inference_image_uri)
         json.dump(params, f)
 
 
