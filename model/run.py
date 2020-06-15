@@ -35,7 +35,8 @@ def get_inference_image(region=None):
     region = region or boto3.Session().region_name
 #     return get_image_uri(region, "xgboost", "0.90-1")
     # See https://aws.amazon.com/releasenotes/available-deep-learning-containers-images/
-    return "763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/pytorch-inference:1.5.0-cpu-py36-ubuntu16.04"
+#     return "763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/pytorch-inference:1.5.0-cpu-py36-ubuntu16.04"
+    return "763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/pytorch-inference:1.4.0-cpu-py36-ubuntu16.04"
 
 
 def get_training_params(
@@ -55,7 +56,7 @@ def get_training_params(
         role=role,
         entry_point='train.py',
         source_dir = "model/",  # the local directory stores all relevant scripts for modeling
-        framework_version='1.5.0',
+        framework_version='1.4.0',
         train_instance_count=1,
         train_instance_type="ml.p3.8xlarge",
         output_path=output_uri,

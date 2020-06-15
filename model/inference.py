@@ -5,10 +5,12 @@ import os
 import logging
 import json
 
-
-logging.basicConfig(level=logging.INFO)
-transformers_logger = logging.getLogger("transformers")
-transformers_logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 def model_fn(model_dir):
     pytorch_model = BertForSequenceClassification.from_pretrained(model_dir)
