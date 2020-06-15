@@ -434,6 +434,7 @@ if __name__ == "__main__":
    
     # Retrieve data and labels
 #     raw_training = pd.read_csv(os.path.join(os.environ["SM_CHANNEL_TRAINING"], "testing-train.csv"))
+    print('Starting to train the model')
     raw_training = pd.read_csv(os.environ["SM_CHANNEL_TRAINING"])
 
 #     raw_training = pd.read_csv("/home/ec2-user/SageMaker/hugging_face_testing/data/train.csv")

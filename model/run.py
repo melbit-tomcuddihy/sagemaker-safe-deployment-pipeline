@@ -62,6 +62,18 @@ def get_training_params(
 
     # Get the training request
     request = training_config(pytorch_model, inputs=data, job_name=job_id)
+    
+    ###########
+    # Delete the S3Operations key. If left in, the lambda to deploy this model fails.
+    # E.g. Unknown parameter in input: "S3Operations", must be one of: TrainingJobName, HyperParameters, AlgorithmSpecification, RoleArn, InputDataConfig, OutputDataConfig, ResourceConfig, VpcConfig, StoppingCondition, Tags, EnableNetworkIsolation, EnableInterContainerTrafficEncryption, EnableManagedSpotTraining, CheckpointConfig, DebugHookConfig, DebugRuleConfigurations, TensorBoardOutputConfig, ExperimentConfig    
+    # 
+    # With the original version of this function, 
+    # https://github.com/brightsparc/sagemaker-safe-deployment-pipeline/blob/2e4ac3ecc5fff0dba04ac49bb447011d075f5d15/model/run.py#L29-L34
+    # the model was a sagemaker.estimator.Estimator() which did not return the "S3Operations" key when passed into
+    # sagemaker.workflow.airflow.training_config()
+    if 'S3Operations' in request.keys():
+        del test2['S3Operations']
+    
     return {
         "Parameters": {
             "ModelName": model_name,
