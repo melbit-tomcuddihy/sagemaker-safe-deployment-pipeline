@@ -27,6 +27,8 @@ Resources:
       PrimaryContainer:
         Image: !Ref ImageRepoUri
         ModelDataUrl: !Sub s3://sagemaker-${AWS::Region}-${AWS::AccountId}/${ModelName}/mlops-${ModelName}-${TrainJobId}/output/model.tar.gz
+        Env:
+            SAGEMAKER_PROGRAM: "inference.py"
       ExecutionRoleArn: !Ref MLOpsRoleArn
 
   EndpointConfig:

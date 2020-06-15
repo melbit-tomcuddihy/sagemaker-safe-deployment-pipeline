@@ -11,7 +11,15 @@ from sagemaker.amazon.amazon_estimator import get_image_uri
 from sagemaker.workflow.airflow import training_config
 
 import logging
+
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+
 logger = logging.getLogger(__name__)
+logger.addHandler(handler)
 
 
 def listdir_fullpath(d):
