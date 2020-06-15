@@ -72,7 +72,7 @@ def get_training_params(
     # the model was a sagemaker.estimator.Estimator() which did not return the "S3Operations" key when passed into
     # sagemaker.workflow.airflow.training_config()
     if 'S3Operations' in request.keys():
-        del test2['S3Operations']
+        del request['S3Operations']
     
     return {
         "Parameters": {
