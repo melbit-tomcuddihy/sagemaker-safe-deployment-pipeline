@@ -171,7 +171,6 @@ def main(
             model_name,
             job_id,
             role,
-            image_uri,
             training_uri,
             validation_uri,
             output_uri,
