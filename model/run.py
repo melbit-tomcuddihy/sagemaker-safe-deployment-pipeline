@@ -28,7 +28,7 @@ def get_training_params(
     hyperparameters,
 ):
     # Create the estimator
-    pytorch_model = Pytorch(
+    pytorch_model = PyTorch(
         role,
         entry_point='train.py',
 #         source_dir = "./",  # the local directory stores all relevant scripts for modeling
