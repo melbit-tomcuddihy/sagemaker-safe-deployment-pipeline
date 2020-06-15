@@ -10,6 +10,8 @@ from sagemaker.pytorch import PyTorch
 from sagemaker.amazon.amazon_estimator import get_image_uri
 from sagemaker.workflow.airflow import training_config
 
+def listdir_fullpath(d):
+    return [os.path.join(d, f) for f in os.listdir(d)]
 
 def get_training_image(region=None):
     region = region or boto3.Session().region_name
@@ -27,14 +29,18 @@ def get_training_params(
     output_uri,
     hyperparameters,
 ):
+    
+
+    print(listdir_fullpath('.'))
     # Create the estimator
     pytorch_model = PyTorch(
         role=role,
         entry_point='train.py',
-        source_dir = "./",  # the local directory stores all relevant scripts for modeling
+        source_dir = ".",  # the local directory stores all relevant scripts for modeling
         framework_version='1.5.0',
         train_instance_count=1,
         train_instance_type="ml.p3.8xlarge",
+        output_path=output_uri,
     )
 #     # Set the hyperparameters overriding with any defaults
 #     params = {
