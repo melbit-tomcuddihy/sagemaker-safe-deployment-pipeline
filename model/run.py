@@ -29,13 +29,12 @@ def get_training_params(
 ):
     # Create the estimator
     pytorch_model = PyTorch(
-        role,
+        role=role,
         entry_point='train.py',
         source_dir = "./",  # the local directory stores all relevant scripts for modeling
         framework_version='1.5.0',
         train_instance_count=1,
         train_instance_type="ml.p3.8xlarge",
-        output_path=output_uri,
     )
 #     # Set the hyperparameters overriding with any defaults
 #     params = {
