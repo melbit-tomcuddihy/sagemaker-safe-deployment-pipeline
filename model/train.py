@@ -430,12 +430,22 @@ def train(train_df, eval_df):
     return model
 
 
+
+def listdir_fullpath(d):
+    return [os.path.join(d, f) for f in os.listdir(d)]
+
+
 if __name__ == "__main__":
    
     # Retrieve data and labels
 #     raw_training = pd.read_csv(os.path.join(os.environ["SM_CHANNEL_TRAINING"], "testing-train.csv"))
     print('Starting to train the model')
-    raw_training = pd.read_csv(os.environ["SM_CHANNEL_TRAINING"])
+    print(f"/opt/ml/input/data/: {listdir_fullpath('/opt/ml/input/data/')}")
+    print(f"/opt/ml/input/data/validation: {listdir_fullpath('/opt/ml/input/data/validation/')}")
+    print(f"/opt/ml/input/data/train: {listdir_fullpath('/opt/ml/input/data/train/')}")
+    
+#     raw_training = pd.read_csv(os.environ["SM_CHANNEL_TRAIN"])
+    raw_training = pd.read_csv(os.path.join(os.environ["SM_CHANNEL_TRAIN"], "train.csv"))
 
 #     raw_training = pd.read_csv("/home/ec2-user/SageMaker/hugging_face_testing/data/train.csv")
 

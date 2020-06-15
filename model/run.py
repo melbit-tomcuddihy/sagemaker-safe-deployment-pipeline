@@ -58,7 +58,7 @@ def get_training_params(
     # Specify the data source
     s3_input_train = sagemaker.s3_input(s3_data=training_uri, content_type="csv")
     s3_input_val = sagemaker.s3_input(s3_data=validation_uri, content_type="csv")
-    data = {"train": s3_input_train, "validation": s3_input_val}
+    data = {"train": s3_input_train, "validation": s3_input_val, "test_channel": s3_input_val}
 
     # Get the training request
     request = training_config(pytorch_model, inputs=data, job_name=job_id)
