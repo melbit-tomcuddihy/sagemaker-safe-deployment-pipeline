@@ -7,7 +7,7 @@ import time
 import boto3
 import sagemaker
 from sagemaker.pytorch import PyTorch
-from sagemaker.amazon.amazon_estimator import get_inference_image_uri
+from sagemaker.amazon.amazon_estimator import get_image_uri
 from sagemaker.workflow.airflow import training_config
 
 import logging
@@ -19,13 +19,13 @@ def listdir_fullpath(d):
 
 def get_training_image(region=None):
     region = region or boto3.Session().region_name
-#     return get_inference_image_uri(region, "xgboost", "0.90-1")
+#     return get_image_uri(region, "xgboost", "0.90-1")
     # See https://aws.amazon.com/releasenotes/available-deep-learning-containers-images/
     return "763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/pytorch-training:1.5.0-gpu-py36-cu101-ubuntu16.04"
 
 def get_inference_image(region=None):
     region = region or boto3.Session().region_name
-#     return get_inference_image_uri(region, "xgboost", "0.90-1")
+#     return get_image_uri(region, "xgboost", "0.90-1")
     # See https://aws.amazon.com/releasenotes/available-deep-learning-containers-images/
     return "763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/pytorch-inference:1.5.0-cpu-py36-ubuntu16.04"
 
