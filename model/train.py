@@ -20,9 +20,7 @@ import os
 import sys
 
 import logging
-logging.basicConfig(level=logging.INFO)
-transformers_logger = logging.getLogger("transformers")
-transformers_logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 import common # Helper functions and params
 
@@ -85,7 +83,7 @@ def create_tokenized_data_set(df: pd.DataFrame, tokenizer: BertTokenizer) -> Ten
     """
     
     # Load the BERT tokenizer.
-    transformers_logger.info('Loading BERT tokenizer...')
+    logger.info('Loading BERT tokenizer...')
     '''
     Original:  Our friends won't buy this analysis, let alone the next one we propose.
     Tokenized:  ['our', 'friends', 'won', "'", 't', 'buy', 'this', 'analysis', ',', 'let', 'alone', 'the', 'next', 'one', 'we', 'propose', '.']
@@ -106,9 +104,9 @@ def create_tokenized_data_set(df: pd.DataFrame, tokenizer: BertTokenizer) -> Ten
         # Update the maximum length.
         max_len = max(max_len, len(input_ids))
 
-    transformers_logger.debug('Max text length: max_len=%s', max_len)
+    logger.debug('Max text length: max_len=%s', max_len)
     if max_len > common.MAX_SEQUENCE_LENGTH:
-        transformers_logger.warning('Max text length, max_len=%s, exceeds MAX_SEQUENCE_LENGTH, MAX_SEQUENCE_LENGTH=%S', max_len, MAX_SEQUENCE_LENGTH)
+        logger.warning('Max text length, max_len=%s, exceeds MAX_SEQUENCE_LENGTH, MAX_SEQUENCE_LENGTH=%S', max_len, MAX_SEQUENCE_LENGTH)
         
     # Tokenize all of the sentences and map the tokens to their word IDs.
     input_ids = []
@@ -152,7 +150,7 @@ def create_tokenized_data_set(df: pd.DataFrame, tokenizer: BertTokenizer) -> Ten
 
 def ret_dataloader(train_df: TensorDataset, eval_df: TensorDataset):
     batch_size = common.BATCH_SIZE
-    transformers_logger.debug('batch_size: batch_size=%s', batch_size)
+    logger.debug('batch_size: batch_size=%s', batch_size)
     train_dataloader = DataLoader(
                 train_df,  # The training samples.
                 sampler = RandomSampler(train_df), # Select batches randomly
@@ -169,7 +167,7 @@ def ret_dataloader(train_df: TensorDataset, eval_df: TensorDataset):
 
 
 def ret_optim(model):
-    transformers_logger.debug('Learning_rate: common.LEARNING_RATE=%s', common.LEARNING_RATE)
+    logger.debug('Learning_rate: common.LEARNING_RATE=%s', common.LEARNING_RATE)
     optimizer = AdamW(model.parameters(),
                       lr = common.LEARNING_RATE, 
                       eps = 1e-8 
@@ -178,7 +176,7 @@ def ret_optim(model):
 
 
 def ret_scheduler(train_dataloader, optimizer):
-    transformers_logger.debug('Epochs: common.EPOCHS=%s', common.EPOCHS)
+    logger.debug('Epochs: common.EPOCHS=%s', common.EPOCHS)
     # Total number of training steps is [number of batches] x [number of epochs]. 
     # (Note that this is not the same as the number of training samples).
     total_steps = len(train_dataloader) * common.EPOCHS
@@ -254,8 +252,8 @@ def train(train_df, eval_df):
         
         # Perform one full pass over the training set.
      
-        transformers_logger.info('Training')
-        transformers_logger.info('======== Epoch %s / %s ======== ', epoch_i + 1, common.EPOCHS)
+        logger.info('Training')
+        logger.info('======== Epoch %s / %s ======== ', epoch_i + 1, common.EPOCHS)
 
         # Measure how long the training epoch takes.
         t0 = time.time()
@@ -278,7 +276,7 @@ def train(train_df, eval_df):
                 elapsed = format_time(time.time() - t0)
                 
                 # Report progress.
-                transformers_logger.info('  Batch {:>5,}  of  {:>5,}.    Elapsed: {:}.'.format(step, len(train_dataloader), elapsed))
+                logger.info('  Batch {:>5,}  of  {:>5,}.    Elapsed: {:}.'.format(step, len(train_dataloader), elapsed))
 
             # Unpack this training batch from our dataloader. 
             #
@@ -310,7 +308,7 @@ def train(train_df, eval_df):
                                 token_type_ids=None, 
                                 attention_mask=b_input_mask, 
                                 labels=b_labels)
-            transformers_logger.info('train_batch_loss: %s', loss.item())
+            logger.info('train_batch_loss: %s', loss.item())
             # Accumulate the training loss over all of the batches so that we can
             # calculate the average loss at the end. `loss` is a Tensor containing a
             # single value; the `.item()` function just returns the Python value 
@@ -337,7 +335,7 @@ def train(train_df, eval_df):
         
         # Measure how long this epoch took.
         training_time = format_time(time.time() - t0)
-        transformers_logger.info('Training time: %s', training_time)
+        logger.info('Training time: %s', training_time)
         
             
         # ========================================
@@ -346,7 +344,7 @@ def train(train_df, eval_df):
         # After the completion of each training epoch, measure our performance on
         # our validation set.
 
-        transformers_logger.info('Training')
+        logger.info('Training')
 
         t0 = time.time()
 
@@ -411,9 +409,9 @@ def train(train_df, eval_df):
         
         # Measure how long the validation run took.
         validation_time = format_time(time.time() - t0)
-        transformers_logger.info('val_accuracy: %s', avg_val_accuracy)
-        transformers_logger.info('avg_val_loss: %s', avg_val_loss)
-        transformers_logger.info('Validation time: %s', validation_time)
+        logger.info('val_accuracy: %s', avg_val_accuracy)
+        logger.info('avg_val_loss: %s', avg_val_loss)
+        logger.info('Validation time: %s', validation_time)
 
         # Record all statistics from this epoch.
         training_stats.append(
@@ -426,7 +424,7 @@ def train(train_df, eval_df):
                 'Validation Time': validation_time
             }
         )
-    transformers_logger.info('Total time: %s', format_time(time.time()-total_t0))
+    logger.info('Total time: %s', format_time(time.time()-total_t0))
     return model
 
 
@@ -443,7 +441,12 @@ if __name__ == "__main__":
     print(f"/opt/ml/input/data/: {listdir_fullpath('/opt/ml/input/data/')}")
     print(f"/opt/ml/input/data/validation: {listdir_fullpath('/opt/ml/input/data/validation/')}")
     print(f"/opt/ml/input/data/train: {listdir_fullpath('/opt/ml/input/data/train/')}")
+    try:
+        print(f"/opt/ml/input/data/train-manifest/: {listdir_fullpath('/opt/ml/input/data/train-manifest/')}")
+    except:
+        print(f"/opt/ml/input/data/train-manifest/ is not a folder")
     
+    logger.info('Oh yeah baby: https://open.spotify.com/track/1SHA4IJyiyNobDOrQzFFXy?si=KbBcYID_QdCnUVv4DvUmeg')
 #     raw_training = pd.read_csv(os.environ["SM_CHANNEL_TRAIN"])
     raw_training = pd.read_csv(os.path.join(os.environ["SM_CHANNEL_TRAIN"], "train.csv"))
 
@@ -455,11 +458,14 @@ if __name__ == "__main__":
     
     # Train and eval split
     train_df, eval_df = split_train_test(tokenized_data)
-        
+
+    
+    logger.info('Training and validation.')
     model = train(train_df, eval_df)
-        
+    
+    logger.info('Saving model and tokenizer.')
     model.save_pretrained(os.environ["SM_MODEL_DIR"])
     tokenizer.save_pretrained(os.environ["SM_MODEL_DIR"])
         
-    transformers_logger.info('finished')
+    logger.info('finished')
     sys.exit(0)
