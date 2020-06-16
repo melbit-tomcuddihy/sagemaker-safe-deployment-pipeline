@@ -18,6 +18,9 @@ import random
 from typing import Tuple
 import os
 import sys
+import shutil
+from pathlib import Path
+
 
 import logging
 logger = logging.getLogger(__name__)
@@ -434,6 +437,24 @@ def train(train_df, eval_df):
     return model
 
 
+def copy_app_files(source, destination):
+    
+    if not destination.exists():
+        destination.mkdir()
+        
+    print(list(b.name for b in source.glob('*')))
+    
+    files_to_copy = source.glob('*.py')
+    files_to_copy.extend(source.glob('*.txt'))
+    print(files_to_copy)
+    for filename in files_to_copy:
+        shutil.copy(filename, dest_dir)
+
+    print('Source')
+    print(list(b.name for b in source.glob('*')))
+    print('Dest')
+    print(list(b.name for b in source.glob('*')))
+    return
 
 def listdir_fullpath(d):
     return [os.path.join(d, f) for f in os.listdir(d)]
@@ -472,6 +493,12 @@ if __name__ == "__main__":
     logger.info('Saving model and tokenizer.')
     model.save_pretrained(os.environ["SM_MODEL_DIR"])
     tokenizer.save_pretrained(os.environ["SM_MODEL_DIR"])
+        
+    logger.info('Saving code to correct folder.')
+    source_path = Path('.')
+    dest_path = Path(os.environ["SM_MODEL_DIR"]) / 'code'
+    copy_app_files(source_path, dest_path)
+    
         
     logger.info('finished')
     sys.exit(0)
