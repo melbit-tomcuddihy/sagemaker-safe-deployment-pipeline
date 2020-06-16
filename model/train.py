@@ -462,33 +462,25 @@ def listdir_fullpath(d):
 
 if __name__ == "__main__":
    
-    # Retrieve data and labels
-#     raw_training = pd.read_csv(os.path.join(os.environ["SM_CHANNEL_TRAINING"], "testing-train.csv"))
-    print('Starting to train the model')
-    print(f"/opt/ml/input/data/: {listdir_fullpath('/opt/ml/input/data/')}")
-    print(f"/opt/ml/input/data/validation: {listdir_fullpath('/opt/ml/input/data/validation/')}")
-    print(f"/opt/ml/input/data/train: {listdir_fullpath('/opt/ml/input/data/train/')}")
-    try:
-        print(f"/opt/ml/input/data/train-manifest/: {listdir_fullpath('/opt/ml/input/data/train-manifest/')}")
-    except:
-        print(f"/opt/ml/input/data/train-manifest/ is not a folder")
-    
-    logger.info('Oh yeah baby: https://open.spotify.com/track/1SHA4IJyiyNobDOrQzFFXy?si=KbBcYID_QdCnUVv4DvUmeg')
-#     raw_training = pd.read_csv(os.environ["SM_CHANNEL_TRAIN"])
-    raw_training = pd.read_csv(os.path.join(os.environ["SM_CHANNEL_TRAIN"], "train.csv"))
+    # Retrieve data and labels    
+    # TODO: Figure out how to auto determine the file name for data in the train/validation folders.
+#     print(f"/opt/ml/input/data/validation: {listdir_fullpath('/opt/ml/input/data/validation/')}")
+#     print(f"/opt/ml/input/data/train: {listdir_fullpath('/opt/ml/input/data/train/')}")
 
-#     raw_training = pd.read_csv("/home/ec2-user/SageMaker/hugging_face_testing/data/train.csv")
+    logger.info('Oh yeah baby, here we go: https://open.spotify.com/track/1SHA4IJyiyNobDOrQzFFXy?si=KbBcYID_QdCnUVv4DvUmeg')
+    
+    raw_training = pd.read_csv(os.path.join(os.environ["SM_CHANNEL_TRAIN"], "train.csv"))
+    print(f"raw_training.shape: {raw_training.shape}")
+    raw_validation = pd.read_csv(os.path.join(os.environ["SM_CHANNEL_VALIDATION"], "validation.csv"))
+    print(f"raw_validation.shape: {raw_validation.shape}")
 
     # Tokenize
     tokenizer = get_BertTokenizer()
-    tokenized_data = create_tokenized_data_set(raw_training, tokenizer)
-    
-    # Train and eval split
-    train_df, eval_df = split_train_test(tokenized_data)
-
+    tokenized_data_train = create_tokenized_data_set(raw_training, tokenizer)
+    tokenized_data_validation = create_tokenized_data_set(raw_validation, tokenizer)
     
     logger.info('Training and validation.')
-    model = train(train_df, eval_df)
+    model = train(tokenized_data_train, tokenized_data_validation)
     
     logger.info('Saving model and tokenizer.')
     model.save_pretrained(os.environ["SM_MODEL_DIR"])
