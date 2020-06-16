@@ -444,8 +444,8 @@ def copy_app_files(source, destination):
         
     print(list(b.name for b in source.glob('*')))
     
-    files_to_copy = source.glob('*.py')
-    files_to_copy.extend(source.glob('*.txt'))
+    files_to_copy = list(source.glob('*.py'))
+    files_to_copy.extend(list(source.glob('*.txt')))
     print(files_to_copy)
     for filename in files_to_copy:
         shutil.copy(filename, dest_dir)
