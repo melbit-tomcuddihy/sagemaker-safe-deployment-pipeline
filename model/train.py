@@ -448,12 +448,12 @@ def copy_app_files(source, destination):
     files_to_copy.extend(list(source.glob('*.txt')))
     print(files_to_copy)
     for filename in files_to_copy:
-        shutil.copy(filename, dest_dir)
+        shutil.copy(filename, destination)
 
     print('Source')
     print(list(b.name for b in source.glob('*')))
     print('Dest')
-    print(list(b.name for b in source.glob('*')))
+    print(list(b.name for b in destination.glob('*')))
     return
 
 def listdir_fullpath(d):
