@@ -31,7 +31,7 @@ def get_training_image(region=None):
 
 def get_inference_image():
     # See https://aws.amazon.com/releasenotes/available-deep-learning-containers-images/
-    return "763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/pytorch-inference:1.4.0-cpu-py3"
+    return "763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/pytorch-inference:1.5.0-cpu-py3"
 
 
 def get_training_params(
@@ -44,14 +44,12 @@ def get_training_params(
     hyperparameters,
 ):
     
-
-    print(listdir_fullpath('.'))
     # Create the estimator
     pytorch_model = PyTorch(
         role=role,
         entry_point='train.py',
         source_dir = "model/",  # the local directory stores all relevant scripts for modeling
-        framework_version='1.4.0',
+        framework_version='1.5.0',
         train_instance_count=1,
         train_instance_type="ml.p3.8xlarge",
         output_path=output_uri,
