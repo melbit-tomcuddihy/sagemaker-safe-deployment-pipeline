@@ -102,6 +102,11 @@ def create_training_job(event):
 
     logger.info("Creating training job with name: %s", training_job_name)
     logger.debug(json.dumps(request))
+    
+    if 'S3Operations' in request.keys():
+        logger.debug('Removing S3Operations from the request as it breaks the call to sm.create_training_job()')
+        del request['S3Operations']
+    
     response = sm.create_training_job(**request)
 
     # Update Output Parameters

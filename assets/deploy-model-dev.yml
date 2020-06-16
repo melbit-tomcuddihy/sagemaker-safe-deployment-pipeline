@@ -29,8 +29,8 @@ Resources:
         ModelDataUrl: !Sub s3://sagemaker-${AWS::Region}-${AWS::AccountId}/${ModelName}/mlops-${ModelName}-${TrainJobId}/output/model.tar.gz
         Environment:
             SAGEMAKER_PROGRAM: "inference.py"
+            SAGEMAKER_SUBMIT_DIRECTORY: !Sub s3://sagemaker-${AWS::Region}-${AWS::AccountId}/${TrainJobId}/source/sourcedir.tar.gz
       ExecutionRoleArn: !Ref MLOpsRoleArn
-
   EndpointConfig:
     Type: "AWS::SageMaker::EndpointConfig"
     Properties:
