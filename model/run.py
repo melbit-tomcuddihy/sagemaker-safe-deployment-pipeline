@@ -26,17 +26,11 @@ def listdir_fullpath(d):
     return [os.path.join(d, f) for f in os.listdir(d)]
 
 def get_training_image(region=None):
-    region = region or boto3.Session().region_name
-#     return get_image_uri(region, "xgboost", "0.90-1")
     # See https://aws.amazon.com/releasenotes/available-deep-learning-containers-images/
     return "763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/pytorch-training:1.5.0-gpu-py36-cu101-ubuntu16.04"
 
-def get_inference_image(region=None):
-    region = region or boto3.Session().region_name
-#     return get_image_uri(region, "xgboost", "0.90-1")
+def get_inference_image():
     # See https://aws.amazon.com/releasenotes/available-deep-learning-containers-images/
-#     return "763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/pytorch-inference:1.5.0-cpu-py36-ubuntu16.04"
-#     return "763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/pytorch-inference:1.4.0-cpu-py36-ubuntu16.04"
     return "763104351884.dkr.ecr.ap-southeast-2.amazonaws.com/pytorch-inference:1.4.0-cpu-py3"
 
 
@@ -78,7 +72,7 @@ def get_training_params(
     # Specify the data source
     s3_input_train = sagemaker.s3_input(s3_data=training_uri, content_type="csv")
     s3_input_val = sagemaker.s3_input(s3_data=validation_uri, content_type="csv")
-    data = {"train": s3_input_train, "validation": s3_input_val, "test_channel": s3_input_val}
+    data = {"train": s3_input_train, "validation": s3_input_val}
 
     # Get the training request
     request = training_config(pytorch_model, inputs=data, job_name=job_id)
@@ -91,8 +85,8 @@ def get_training_params(
     # https://github.com/brightsparc/sagemaker-safe-deployment-pipeline/blob/2e4ac3ecc5fff0dba04ac49bb447011d075f5d15/model/run.py#L29-L34
     # the model was a sagemaker.estimator.Estimator() which did not return the "S3Operations" key when passed into
     # sagemaker.workflow.airflow.training_config()
-#     if 'S3Operations' in request.keys():
-#         del request['S3Operations']
+    if 'S3Operations' in request.keys():
+        del request['S3Operations']
     
     return {
         "Parameters": {
